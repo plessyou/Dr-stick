@@ -1,7 +1,7 @@
-/* Stickaufträge – Service Worker
-   Bei jedem Update die Zahl hochzählen, dann holt sich die App die neuen Dateien.
-   Deine Aufträge liegen getrennt davon im Gerätespeicher und werden nie angefasst. */
-const CACHE_NAME = "stickauftraege-v4";
+/* Stickaufträge: Dateicache v5. Aufträge, Ordner und Fotos bleiben unverändert. */
+const APP_VERSION = "v5";
+const CACHE_PREFIX = "stickauftraege:" + self.registration.scope + ":";
+const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -13,22 +13,37 @@ const APP_SHELL = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/icon-maskable-192.png",
-  "./icons/icon-maskable-512.png"
+  "./icons/icon-maskable-512.png",
+  "./icons/icon-192-v5.png",
+  "./icons/icon-512-v5.png",
+  "./icons/icon-maskable-192-v5.png",
+  "./icons/icon-maskable-512-v5.png"
 ];
+const APP_URLS = new Set(APP_SHELL.map(pfad => new URL(pfad, self.registration.scope).pathname));
+const MANIFEST_URL = new URL("./manifest.webmanifest", self.registration.scope).pathname;
 
 self.addEventListener("install", event => {
   event.waitUntil((async () => {
-    const cache = await caches.open(CACHE_NAME);
-    /* Einzeln ablegen: eine fehlende Datei darf die Installation nicht kippen */
-    await Promise.all(APP_SHELL.map(pfad => cache.add(pfad).catch(() => {})));
-    await self.skipWaiting();
+    try{
+      const cache = await caches.open(CACHE_NAME);
+      /* Nur ein vollständiges Paket aktivieren, keine alten HTTP-Cache-Kopien übernehmen. */
+      await cache.addAll(APP_SHELL.map(pfad => new Request(
+        new URL(pfad, self.registration.scope).href, { cache: "reload" }
+      )));
+      await self.skipWaiting();
+    }catch(fehler){
+      console.error("Offline-Update unvollständig. Bitte alle App-Dateien hochladen.", fehler);
+      throw fehler;
+    }
   })());
 });
 
 self.addEventListener("activate", event => {
   event.waitUntil((async () => {
     const namen = await caches.keys();
-    await Promise.all(namen.filter(n => n !== CACHE_NAME).map(n => caches.delete(n)));
+    /* Caches anderer Apps oder Installationspfade nicht löschen. */
+    await Promise.all(namen.filter(name => name.startsWith(CACHE_PREFIX) && name !== CACHE_NAME)
+      .map(name => caches.delete(name)));
     await self.clients.claim();
   })());
 });
@@ -36,28 +51,47 @@ self.addEventListener("activate", event => {
 self.addEventListener("fetch", event => {
   const anfrage = event.request;
   if(anfrage.method !== "GET") return;
-
-  let url;
-  try{ url = new URL(anfrage.url); }catch(e){ return; }
-  if(url.origin !== self.location.origin) return;
+  const url = new URL(anfrage.url);
+  if(url.origin !== self.location.origin || !url.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
+  if(anfrage.mode !== "navigate" && !APP_URLS.has(url.pathname)) return;
 
   event.respondWith((async () => {
+    let antwort;
     try{
-      const antwort = await fetch(anfrage);
-      if(antwort && antwort.ok && antwort.type === "basic"){
-        const kopie = antwort.clone();
-        caches.open(CACHE_NAME).then(c => c.put(anfrage, kopie)).catch(() => {});
+      const istAktualisierung = anfrage.mode === "navigate" || url.pathname === MANIFEST_URL;
+      antwort = await fetch(anfrage, istAktualisierung ? { cache: "no-cache" } : {});
+      if(antwort.ok && antwort.type === "basic"){
+        try{
+          const cache = await caches.open(CACHE_NAME);
+          await cache.put(anfrage, antwort.clone());
+        }catch(fehler){
+          console.warn("Datei konnte nicht offline gespeichert werden:", fehler);
+        }
       }
-      return antwort;
-    }catch(e){
-      const gespeichert = await caches.match(anfrage, { ignoreSearch:true });
+      if(antwort.status < 500) return antwort;
+    }catch(fehler){
+      /* Ohne Netz die geprüfte Kopie aus diesem Installationspfad verwenden. */
+    }
+
+    try{
+      const cache = await caches.open(CACHE_NAME);
+      const gespeichert = await cache.match(anfrage);
       if(gespeichert) return gespeichert;
       if(anfrage.mode === "navigate"){
-        return (await caches.match("./index.html")) ||
-               (await caches.match("./")) ||
-               new Response("Offline", { status:503, headers:{ "Content-Type":"text/plain" } });
+        const startseite = await cache.match(new URL("./index.html", self.registration.scope).href);
+        if(startseite) return startseite;
       }
-      return Response.error();
+    }catch(fehler){
+      console.warn("Offline-Dateien konnten nicht gelesen werden:", fehler);
     }
+
+    if(antwort) return antwort;
+    if(anfrage.mode === "navigate"){
+      return new Response("Bitte einmal mit Internetverbindung öffnen.", {
+        status: 503,
+        headers: { "Content-Type": "text/plain; charset=utf-8" }
+      });
+    }
+    return Response.error();
   })());
 });

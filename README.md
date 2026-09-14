@@ -1,42 +1,45 @@
 # Stickaufträge
 
-Auftragsbuch für Stickereien – läuft komplett im Browser, alle Daten bleiben auf dem Gerät.
+Auftragsbuch für Stickereien. Die Speicherlogik für Aufträge, Ordner und Fotos wurde nicht verändert.
 
-## Inhalt
+## Android-Version v5 bereitstellen
 
-| Datei | Wozu |
-|---|---|
-| `index.html` | die App |
-| `manifest.webmanifest` | macht sie auf Android als echte App installierbar |
-| `sw.js` | Offline-Betrieb und saubere Updates |
-| `favicon.ico` | Symbol im Browser-Tab |
-| `icons/icon-192.png`, `icons/icon-512.png` | App-Symbol |
-| `icons/icon-maskable-*.png` | Symbol für Androids eigene Formen (rund, Squircle …) |
-| `icons/apple-touch-icon.png` | Symbol für iPhone und iPad |
-| `icons/favicon-16.png`, `icons/favicon-32.png` | kleine Browser-Symbole |
+1. Zur Sicherheit in der bisherigen App **⤓ Daten → Sicherung speichern** wählen.
+2. Diese ZIP entpacken und **den gesamten Inhalt** an dieselbe Stelle wie die bisherige App hochladen. Nicht nur `index.html` ersetzen. Der vollständige Ordner `icons` muss mit hochgeladen werden.
+3. Die veröffentlichte **HTTPS-Adresse** in Chrome auf Android öffnen und neu laden. Eine lokale HTML-Datei, eine ZIP-Vorschau oder die Dateiansicht eines Repositorys ist keine installierbare Website.
+4. **App installieren** antippen. Falls der Browser keinen direkten Installationsdialog anbietet, zeigt der Knopf eine Anleitung für das Browsermenü. Dort **App installieren** oder **Zum Startbildschirm hinzufügen → Installieren** wählen. Das Stickrahmen-Symbol sollte bereits im Dialog erscheinen.
 
-Die Ordnerstruktur muss genau so bleiben, sonst findet die App ihre Symbole nicht.
+Die Website-Adresse und der bisherige Installationspfad sollen gleich bleiben. Die ZIP-Datei selbst ist keine APK.
 
-## Auf Android als echte App installieren
+## Was angepasst wurde
 
-1. Adresse in **Chrome** öffnen.
-2. Eine alte Verknüpfung mit Chrome-Abzeichen vorher vom Startbildschirm entfernen.
-3. Dreipunktmenü → **Zum Startbildschirm hinzufügen** oder **App installieren**.
-4. Erscheint ein Dialog mit zwei Möglichkeiten: **Installieren** wählen, *nicht* „Verknüpfung erstellen“.
+- Die vorhandenen normalen und maskierbaren Symbole sind unter neuen Dateinamen mit `-v5.png` eingebunden. Das Motiv bleibt unverändert. Beide Varianten liegen in 192 × 192 und 512 × 512 Pixeln vor. Die maskierbaren Symbole haben einen deckenden Hintergrund und ausreichend Platz für Androids unterschiedliche Symbolformen.
+- Das Manifest bleibt unter `manifest.webmanifest` erreichbar. App-ID, Name, Startadresse und Gültigkeitsbereich sind unverändert. Zusätzliche HTML-Symbolverweise verwenden ebenfalls die neuen Dateien.
+- **App installieren** enthält jetzt das App-Symbol und bleibt im Android-Browser auch ohne automatisches Installationsangebot erreichbar. Die Werkzeugleiste bricht auf schmalen Bildschirmen um, statt den Knopf rechts aus dem sichtbaren Bereich zu schieben. Innerhalb der bereits gestarteten App ist der Knopf ausgeblendet.
+- Der Service Worker verwendet Version 5, lädt das vollständige Dateipaket neu und prüft HTML und Manifest online auf Aktualisierungen. Seine neuen Caches sind nach Installationspfad getrennt. Die Bereinigung betrifft nur seine eigenen versionierten Caches, nicht Aufträge oder Caches anderer Apps.
 
-Danach steht die App in der App-Übersicht wie jede andere, startet im Vollbild
-ohne Adressleiste und trägt kein Chrome-Abzeichen mehr.
+## Eine vorhandene Installation zeigt noch das alte oder kein Symbol
 
-## Nach einer Änderung
+Eine einfache Startbildschirm-Verknüpfung kann entfernt und über die oben beschriebene Installation neu angelegt werden. Dabei nur die Verknüpfung entfernen, nicht die Browser- oder Website-Daten löschen.
 
-1. In `sw.js` die Zeile `const CACHE_NAME = "stickauftraege-v4";` hochzählen, etwa auf `"stickauftraege-v5"`.
-2. In `index.html` die Stelle `sw.js?v=4` auf dieselbe Zahl setzen.
-3. Geänderte Dateien ins Repository hochladen.
+Bei einer bereits installierten Web-App aktualisiert Chrome das Android-Symbol nicht unbedingt sofort. Die App nach dem Hochladen einmal online öffnen und anschließend schließen. WLAN und ein angeschlossenes Ladegerät können für die Aktualisierung erforderlich sein. Die beiliegenden Dateien können das bereits auf einem Gerät gespeicherte Symbol nicht sofort ersetzen.
 
-Gespeicherte Aufträge bleiben dabei erhalten.
+Vor einer eventuellen Deinstallation oder Neuinstallation immer eine Sicherung speichern. Die App selbst verändert beim Datei-Update keine gespeicherten Aufträge.
 
-## Daten sichern
+## Dateien
 
-In der App auf **⤓ Daten → Sicherung speichern**. Die JSON-Datei enthält Aufträge,
-Ordner und Fotos. Über **Sicherung laden** kommt alles auf einem anderen Gerät
-wieder hinein. Mach das regelmäßig – der Browser-Speicher ist die einzige Kopie.
+`index.html`, `manifest.webmanifest`, `sw.js`, `favicon.ico` und der komplette Ordner `icons` gehören zusammen. Die ursprünglichen Symboldateien ohne `-v5` bleiben zur Kompatibilität mit älteren Verweisen enthalten. `README.md` und `PRUEFUNG.md` sind Dokumentation und nicht für die Ausführung erforderlich.
+
+Der Webserver muss echte PNG-Dateien unter den Symboladressen und JSON unter `manifest.webmanifest` liefern, keine HTML-Fehlerseite oder Anmeldung. Für das Manifest ist `application/manifest+json`, für die Symbole `image/png` als Content-Type vorgesehen.
+
+## Weitere Updates
+
+Bei Änderungen an den App-Dateien `APP_VERSION` in `sw.js` und `sw.js?v=5` in `index.html` gemeinsam erhöhen. Bei einem neuen Symbol neue versionierte PNG-Dateien anlegen und deren Verweise in Manifest, HTML und `APP_SHELL` aktualisieren. Den Namen und Pfad der Manifestdatei beibehalten.
+
+## Technische Quellen
+
+Installationsvoraussetzungen: `https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable`
+
+Android-Symbolformen und Sicherheitsbereich: `https://web.dev/articles/maskable-icon`
+
+Aktualisierung bestehender Installationen: `https://web.dev/articles/manifest-updates`

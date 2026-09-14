@@ -4,10 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stickaufträge</title>
-<link rel="manifest" id="manifestLink" href="./manifest.webmanifest">
+<link rel="manifest" id="manifestLink" href="./manifest.webmanifest" type="application/manifest+json">
 <link rel="apple-touch-icon" id="appleIcon" sizes="180x180" href="./icons/apple-touch-icon.png">
 <link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192-v5.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512-v5.png">
 <link rel="shortcut icon" href="./favicon.ico">
 <meta name="theme-color" content="#f3f4f1">
 <meta name="mobile-web-app-capable" content="yes">
@@ -16,10 +17,6 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Stickaufträge">
 <meta name="description" content="Übersicht über Stickaufträge – Motiv, Textil, Garn, Deadline, Bezahlung.">
-<script>
-/* Android/PWA manifest: reproduces the old working inline-icon setup. */
-/* Das Manifest liegt als eigene Datei daneben: ./manifest.webmanifest */
-</script>
 <style>
   :root{
     --stoff:#f3f4f1; --karte:#ffffff; --tinte:#23262b; --tinte-2:#5c6168; --linie:#dcded8;
@@ -56,7 +53,7 @@
   .chip b{color:var(--tinte); font-weight:600}
   .chip.aktiv{background:var(--tinte); border-color:var(--tinte); color:#fff}
   .chip.aktiv b{color:#fff}
-  .werkzeuge{display:flex; gap:8px; padding:8px 18px 0}
+  .werkzeuge{display:flex; flex-wrap:wrap; gap:8px; padding:8px 18px 0}
   .wz{
     display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:999px;
     border:1px solid var(--linie); background:transparent; font-size:12.5px; color:var(--tinte-2); white-space:nowrap;
@@ -250,7 +247,7 @@
   <button class="wz" id="wzSortieren">↕ Sortieren: <b id="sortLabel">Deadline</b></button>
   <button class="wz stark" id="wzNeuerOrdner">+ Neuer Ordner</button>
   <button class="wz" id="wzDaten" aria-label="Daten sichern und laden">⤓ Daten</button>
-  <button class="wz stark" id="wzInstallieren" hidden>⌂ App installieren</button>
+  <button class="wz stark" id="wzInstallieren" type="button" hidden><img src="./icons/icon-192-v5.png" width="20" height="20" alt="" aria-hidden="true">App installieren</button>
 </div>
 <input type="file" id="fImport" accept="application/json,.json" hidden>
 
@@ -818,6 +815,23 @@ function renderBlatt(){
       '<button class="b-option" data-daten="import">⤒ Sicherung laden</button>' +
       '<p class="klein" style="margin-top:14px">Laden ersetzt alles, was gerade in dieser App steht.</p>';
   }
+  else if(blattModus === "installieren"){
+    let hinweis;
+    if(!/^https?:$/.test(location.protocol)){
+      hinweis = "Zum Installieren die veröffentlichte HTTPS-Adresse in Chrome öffnen. Eine direkt geöffnete HTML-Datei oder ZIP-Vorschau reicht nicht aus.";
+    }else if(!window.isSecureContext){
+      hinweis = "Zum Installieren muss die App über HTTPS geöffnet werden. Bitte die sichere Adresse dieser App in Chrome aufrufen.";
+    }else if(!navigator.onLine){
+      hinweis = "Zum Installieren bitte zuerst eine Internetverbindung herstellen und die Seite erneut öffnen.";
+    }else{
+      hinweis = "In Chrome oben rechts auf ⋮ tippen und „App installieren“ oder „Zum Startbildschirm hinzufügen“ wählen. Falls zwei Möglichkeiten erscheinen, „Installieren“ auswählen. Der Dialog sollte das Stickrahmen-Symbol zeigen.";
+    }
+    html = '<h3>App mit Symbol installieren</h3>' +
+      '<p><img src="./icons/icon-192-v5.png" width="64" height="64" alt="App-Symbol: Stickrahmen mit Haken"></p>' +
+      '<p class="klein">' + esc(hinweis) + '</p>' +
+      '<p class="klein">Fehlt das Symbol im Installationsdialog, müssen auch manifest.webmanifest und der komplette Ordner icons auf dem Webserver liegen. Danach die Seite neu laden.</p>' +
+      '<button class="b-option" id="pwaHilfeSchliessen">Verstanden</button>';
+  }
   else if(blattModus === "ordner"){
     html = '<h3>' + esc(blattDaten) + '</h3><p class="klein">Ordner bearbeiten</p>' +
       '<div class="b-neu"><input type="text" id="blattEingabe" value="' + esc(blattDaten) + '" autocomplete="off">' +
@@ -1261,6 +1275,7 @@ document.addEventListener("click", e => {
   if(t.id === "wzNeuerOrdner"){ blattOeffnen("neu"); return; }
   if(t.id === "wzDaten"){ blattOeffnen("daten"); return; }
   if(t.id === "wzInstallieren"){ appInstallieren(); return; }
+  if(t.id === "pwaHilfeSchliessen"){ blattSchliessen(); return; }
   if(t.dataset.daten === "export"){ datenExportieren(); return; }
   if(t.dataset.daten === "import"){
     if(t.dataset.sicher !== "1"){
@@ -1360,36 +1375,72 @@ $("fFotos").addEventListener("change", e => {
   e.target.value = "";
 });
 
-if ("serviceWorker" in navigator) {
+/* ── PWA-Installation und Updates ───────── */
+if("serviceWorker" in navigator && window.isSecureContext && /^https?:$/.test(location.protocol)){
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=4").catch(() => {});
+    navigator.serviceWorker.register("./sw.js?v=5", {
+      scope: "./",
+      updateViaCache: "none"
+    }).catch(fehler => {
+      console.warn("Offline-Funktion konnte nicht aktualisiert werden:", fehler);
+    });
   });
 }
 
-
-/* ── PWA-Installation ───────────────────── */
 let pwaInstallPrompt = null;
+let pwaInstallLaeuft = false;
+let pwaInstallationBestaetigt = false;
+const pwaAndroid = /Android/i.test(navigator.userAgent);
+const pwaDarstellung = window.matchMedia("(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)");
+
+function pwaIstApp(){
+  return pwaInstallationBestaetigt || pwaDarstellung.matches || navigator.standalone === true;
+}
+function pwaInstallKnopfAktualisieren(){
+  const b = $("wzInstallieren");
+  if(!b) return;
+  b.hidden = pwaIstApp() || (!pwaAndroid && !pwaInstallPrompt);
+  b.disabled = pwaInstallLaeuft;
+}
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
   pwaInstallPrompt = e;
-  const b = $("wzInstallieren");
-  if(b) b.hidden = false;
+  pwaInstallKnopfAktualisieren();
 });
 window.addEventListener("appinstalled", () => {
+  pwaInstallationBestaetigt = true;
   pwaInstallPrompt = null;
-  const b = $("wzInstallieren");
-  if(b) b.hidden = true;
+  if(blattModus === "installieren") blattSchliessen();
+  pwaInstallKnopfAktualisieren();
 });
+if(pwaDarstellung.addEventListener){
+  pwaDarstellung.addEventListener("change", pwaInstallKnopfAktualisieren);
+}else if(pwaDarstellung.addListener){
+  pwaDarstellung.addListener(pwaInstallKnopfAktualisieren);
+}
+pwaInstallKnopfAktualisieren();
+
 async function appInstallieren(){
-  if(!pwaInstallPrompt) return;
-  const p = pwaInstallPrompt;
+  if(pwaInstallLaeuft || pwaIstApp()) return;
+  if(!pwaInstallPrompt){
+    blattOeffnen("installieren");
+    return;
+  }
+  const prompt = pwaInstallPrompt;
   pwaInstallPrompt = null;
+  pwaInstallLaeuft = true;
+  pwaInstallKnopfAktualisieren();
   try{
-    await p.prompt();
-    await p.userChoice;
-  }catch(e){}
-  const b = $("wzInstallieren");
-  if(b) b.hidden = true;
+    await prompt.prompt();
+    const wahl = await prompt.userChoice;
+    if(wahl.outcome === "accepted") pwaInstallationBestaetigt = true;
+  }catch(fehler){
+    console.warn("Installation konnte nicht gestartet werden:", fehler);
+    blattOeffnen("installieren");
+  }finally{
+    pwaInstallLaeuft = false;
+    pwaInstallKnopfAktualisieren();
+  }
 }
 
 /* ── Start ─────────────────────────────── */
