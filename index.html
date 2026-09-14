@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Stickaufträge</title>
+<link rel="manifest" id="manifestLink" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" id="appleIcon" sizes="180x180" href="./icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+<link rel="shortcut icon" href="./favicon.ico">
+<meta name="theme-color" content="#f3f4f1">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="application-name" content="Stickaufträge">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Stickaufträge">
+<meta name="description" content="Übersicht über Stickaufträge – Motiv, Textil, Garn, Deadline, Bezahlung.">
+<script>
+/* Android/PWA manifest: reproduces the old working inline-icon setup. */
+/* Das Manifest liegt als eigene Datei daneben: ./manifest.webmanifest */
+</script>
+<style>
+  :root{
+    --stoff:#f3f4f1; --karte:#ffffff; --tinte:#23262b; --tinte-2:#5c6168; --linie:#dcded8;
+    --garn-blau:#37518f; --garn-gelb:#c99a3a; --garn-gruen:#4a7c59; --garn-grau:#a2a7ad;
+    --beere:#b03a48; --lila:#7a4fa3;
+    --radius:14px;
+    --schatten:0 1px 2px rgba(35,38,43,.06), 0 6px 18px rgba(35,38,43,.07);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--stoff); color:var(--tinte);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:15.5px; line-height:1.45; padding-bottom:96px;
+    -webkit-tap-highlight-color:transparent;
+  }
+  button{font:inherit;color:inherit;background:none;border:none;padding:0;cursor:pointer}
+  button:focus-visible, input:focus-visible, textarea:focus-visible{
+    outline:2px solid var(--garn-blau); outline-offset:2px; border-radius:6px;
+  }
+
+  .kopf{padding:20px 18px 10px}
+  .kopf h1{margin:0; font-family:Georgia,'Times New Roman',serif; font-style:italic; font-weight:600; font-size:30px; letter-spacing:.2px}
+  .kopf .unterzeile{margin:2px 0 0; color:var(--tinte-2); font-size:13px}
+  .laufstich{height:0; border-top:2px dashed var(--garn-blau); opacity:.5; margin:12px 18px 0}
+
+  .chips{display:flex; gap:8px; padding:12px 18px 4px; overflow-x:auto; scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto; padding:7px 13px; border-radius:999px;
+    border:1px solid var(--linie); background:var(--karte);
+    font-size:13.5px; color:var(--tinte-2); white-space:nowrap;
+  }
+  .chip b{color:var(--tinte); font-weight:600}
+  .chip.aktiv{background:var(--tinte); border-color:var(--tinte); color:#fff}
+  .chip.aktiv b{color:#fff}
+  .werkzeuge{display:flex; gap:8px; padding:8px 18px 0}
+  .wz{
+    display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:999px;
+    border:1px solid var(--linie); background:transparent; font-size:12.5px; color:var(--tinte-2); white-space:nowrap;
+  }
+  .wz b{color:var(--tinte); font-weight:600}
+  .wz.stark{border-color:var(--garn-blau); color:var(--garn-blau)}
+  #wzInstallieren[hidden]{display:none}
+
+  /* ── Ordner ───────────────────────────── */
+  .liste{padding:8px 18px 0}
+  .ordner{margin-bottom:6px}
+  .ordner-kopf{display:flex; align-items:baseline; gap:9px; padding:14px 2px 6px}
+  .ordner-titel{display:flex; align-items:baseline; gap:9px; flex:1; min-width:0; text-align:left}
+  .ordner-pfeil{flex:0 0 auto; font-size:11px; color:var(--tinte-2); width:12px}
+  .ordner-name{
+    font-family:Georgia,serif; font-style:italic; font-size:17px; font-weight:600;
+    flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .ordner-zahl{flex:0 0 auto; font-size:11.5px; color:var(--tinte-2)}
+  .ordner-mehr{flex:0 0 auto; padding:2px 8px; color:var(--tinte-2); font-size:17px; line-height:1}
+  .ordner-linie{height:0; border-top:1px dashed var(--linie); margin:0 2px 10px}
+  .ordner.erledigt .ordner-name, .ordner.erledigt .ordner-pfeil{color:var(--garn-gruen)}
+  .ordner-inhalt{display:flex; flex-direction:column; gap:12px; border-radius:12px; padding:2px}
+  .ordner-inhalt.drueber{outline:2px dashed var(--garn-blau); outline-offset:1px; background:#eaeef7}
+  .ordner-leer{
+    padding:16px 14px; border:1px dashed var(--linie); border-radius:12px;
+    font-size:13px; color:var(--tinte-2); text-align:center;
+  }
+
+  /* ── Karten ───────────────────────────── */
+  .karte{
+    display:flex; align-items:flex-start; width:100%;
+    background:var(--karte); border-radius:var(--radius); box-shadow:var(--schatten); overflow:hidden;
+  }
+  .karte.frisch{box-shadow:0 0 0 2px var(--garn-blau), var(--schatten)}
+  .karte.zieh-quelle{opacity:.35}
+  .karte.zieh{
+    position:fixed; z-index:70; pointer-events:none; opacity:.95;
+    box-shadow:0 12px 28px rgba(35,38,43,.28); transform:rotate(-1deg);
+  }
+  .garnstrang{flex:0 0 9px; align-self:stretch; background:repeating-linear-gradient(-55deg, var(--g1) 0 3px, var(--g2) 3px 6px)}
+  .karte-spalte{flex:1; min-width:0; display:flex; flex-direction:column; align-self:stretch}
+  .karte-flaeche{flex:1; text-align:left; padding:12px 12px 10px 14px; min-width:0; display:block; width:100%}
+  .karte-flaeche:active{opacity:.7}
+  .person{font-family:Georgia,'Times New Roman',serif; font-style:italic; font-size:18.5px; font-weight:600; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .motiv{color:var(--tinte-2); font-size:14px; margin-top:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+  .banderole{display:block; margin-top:7px; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--tinte-2); overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .karte-fuss{display:flex; align-items:center; gap:6px; margin-top:9px; flex-wrap:wrap}
+  .meta{display:block; margin-top:8px; font-size:11.5px; color:var(--tinte-2); opacity:.8}
+  .marke{display:inline-flex; align-items:center; gap:5px; font-size:12px; padding:3px 9px; border-radius:999px; background:var(--stoff); color:var(--tinte-2); white-space:nowrap}
+  .marke .punkt{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .marke.frist-warn{background:#f7e9d8; color:#8a5a17}
+  .marke.frist-rot{background:#f6e3e5; color:var(--beere); font-weight:600}
+  .marke.keine-frist{background:#f2ecf7; color:var(--lila); font-weight:600; border:1px dashed var(--lila)}
+  .thumb{flex:0 0 auto; width:92px; height:92px; margin:12px 12px 0 0; border-radius:10px; object-fit:contain; background:var(--stoff)}
+
+  .karte-aktion{display:flex; align-items:center; gap:8px; padding:8px 12px 10px 14px; border-top:1px dashed var(--linie); flex-wrap:wrap}
+  .akt-knopf{
+    display:inline-flex; align-items:center; gap:7px; padding:6px 11px; border-radius:999px;
+    border:1px solid var(--linie); background:var(--karte); font-size:12.5px; color:var(--tinte-2); white-space:nowrap;
+  }
+  .akt-knopf:active{opacity:.55}
+  .akt-knopf .punkt{width:8px; height:8px; border-radius:50%; background:currentColor}
+  .akt-knopf.gezahlt{color:var(--garn-gruen); border-color:#bcd3c2; background:#f2f7f3; font-weight:600}
+  .akt-knopf.geschenk{color:var(--garn-blau); border-color:#c3cde4; background:#eef1f8; font-weight:600}
+  .mini-box{
+    flex:0 0 auto; width:18px; height:18px; border-radius:5px; border:2px solid var(--linie);
+    background:var(--karte); display:flex; align-items:center; justify-content:center;
+    font-size:11px; line-height:1; color:transparent;
+  }
+  .akt-knopf.gezahlt .mini-box{background:var(--garn-gruen); border-color:var(--garn-gruen); color:#fff}
+  .griff{max-width:52%; min-width:0; touch-action:none; cursor:grab}
+  .griff .punkte{flex:0 0 auto; letter-spacing:-1px; opacity:.6}
+  .griff .txt{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .betrag-rechts{margin-left:auto; font-size:12.5px; color:var(--tinte-2)}
+
+  .leer{padding:56px 30px; text-align:center; color:var(--tinte-2)}
+  .leer .rahmen{width:88px; height:88px; margin:0 auto 16px; border-radius:50%; border:3px solid #c8b089; display:flex; align-items:center; justify-content:center}
+  .leer .rahmen .innen{width:64px; height:64px; border-radius:50%; border:2px dashed var(--garn-blau); opacity:.55}
+  .leer p{margin:0 0 4px; font-size:15px}
+  .leer .klein{font-size:13px}
+
+  .fab{
+    position:fixed; right:18px; bottom:22px; z-index:20; width:58px; height:58px; border-radius:50%;
+    background:var(--garn-blau); color:#fff; font-size:30px; line-height:1;
+    box-shadow:0 6px 16px rgba(55,81,143,.4); display:flex; align-items:center; justify-content:center;
+  }
+  .fab:active{transform:scale(.95)}
+
+  /* ── Sheets ───────────────────────────── */
+  .sheet{position:fixed; inset:0; z-index:30; background:var(--stoff); display:none; flex-direction:column}
+  #sheetForm{z-index:40}
+  .sheet.offen{display:flex}
+  .sheet-kopf{display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--linie); background:var(--karte); position:sticky; top:0; z-index:2}
+  .sheet-kopf h2{margin:0; flex:1; font-family:Georgia,serif; font-style:italic; font-size:20px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .zurueck{font-size:15px; color:var(--garn-blau); font-weight:600; padding:6px 2px}
+  .sheet-body{flex:1; overflow-y:auto; padding:16px 18px 40px}
+
+  /* Blatt von unten */
+  .blatt{position:fixed; inset:0; z-index:45; display:none; align-items:flex-end; background:rgba(20,22,26,.42)}
+  .blatt.offen{display:flex}
+  .blatt-inhalt{width:100%; max-height:82vh; overflow-y:auto; background:var(--stoff); border-radius:18px 18px 0 0; padding:18px 18px 28px}
+  .blatt-inhalt h3{margin:0; font-family:Georgia,serif; font-style:italic; font-size:19px; font-weight:600}
+  .blatt-inhalt .klein{margin:2px 0 12px; font-size:12.5px; color:var(--tinte-2)}
+  .b-option{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    padding:12px 14px; border-radius:12px; background:var(--karte);
+    border:1px solid var(--linie); margin-top:8px; font-size:15px;
+  }
+  .b-option.aktiv{border-color:var(--garn-blau); color:var(--garn-blau); font-weight:600}
+  .b-option.warn{color:var(--beere); border-color:#e3c2c7}
+  .b-option .haken{margin-left:auto; color:var(--garn-blau)}
+  .b-neu{display:flex; gap:8px; margin-top:16px}
+  .b-neu input{flex:1; min-width:0; padding:11px 12px; border:1px solid var(--linie); border-radius:10px; font:inherit; background:var(--karte); color:var(--tinte)}
+  .b-neu button{flex:0 0 auto; padding:11px 16px; border-radius:10px; background:var(--garn-blau); color:#fff; font-weight:600}
+
+  /* ── Formular ─────────────────────────── */
+  .feld{margin-bottom:16px}
+  .feld label, .feld-titel{display:block; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--tinte-2); margin-bottom:6px}
+  .feld input[type=text], .feld input[type=date], .feld textarea{
+    width:100%; padding:11px 12px; font:inherit; color:var(--tinte);
+    background:var(--karte); border:1px solid var(--linie); border-radius:10px;
+  }
+  .feld textarea{resize:vertical; min-height:66px}
+  .feld-reihe{display:flex; gap:12px}
+  .feld-reihe .feld{flex:1; min-width:0}
+  .hinweis{font-size:12px; color:var(--tinte-2); margin-top:5px}
+
+  .wahl-chips{display:flex; flex-wrap:wrap; gap:7px}
+  .wahl-chip{
+    padding:8px 12px; border-radius:999px; border:1px solid var(--linie); background:var(--karte);
+    font-size:13.5px; color:var(--tinte-2); display:inline-flex; align-items:center; gap:6px;
+  }
+  .wahl-chip.aktiv{background:var(--wf, var(--tinte)); border-color:var(--wf, var(--tinte)); color:#fff; font-weight:600; border-style:solid}
+  .wahl-chip.sonst{border-style:dashed; color:var(--garn-blau)}
+
+  .status-schalter{display:flex; gap:6px; flex-wrap:wrap}
+  .status-knopf{
+    flex:1 1 0; padding:10px 4px; border-radius:10px; font-size:13px;
+    border:1px solid var(--linie); background:var(--karte); color:var(--tinte-2);
+    display:flex; align-items:center; justify-content:center; gap:7px; min-width:92px;
+  }
+  .status-knopf .punkt{width:9px; height:9px; border-radius:50%; background:var(--sf)}
+  .status-knopf.aktiv{background:var(--sf); border-color:var(--sf); color:#fff; font-weight:600}
+  .status-knopf.aktiv .punkt{background:#fff}
+
+  .foto-reihe{display:flex; gap:10px; flex-wrap:wrap}
+  .foto-kachel{position:relative; width:76px; height:76px}
+  .foto-kachel img{width:100%; height:100%; object-fit:cover; border-radius:10px; display:block}
+  .foto-x{position:absolute; top:-7px; right:-7px; width:24px; height:24px; border-radius:50%; background:var(--tinte); color:#fff; font-size:14px; line-height:1; display:flex; align-items:center; justify-content:center}
+  .foto-plus{width:76px; height:76px; border-radius:10px; border:2px dashed var(--garn-blau); color:var(--garn-blau); font-size:26px; display:flex; align-items:center; justify-content:center; background:var(--karte); opacity:.85}
+
+  .knopf{width:100%; padding:14px; border-radius:12px; font-size:16px; font-weight:600; background:var(--garn-blau); color:#fff; margin-top:6px}
+  .knopf.leise{background:var(--karte); color:var(--tinte); border:1px solid var(--linie); font-weight:500}
+  .knopf.rot{background:transparent; color:var(--beere); border:1px solid #e3c2c7}
+  .knopf:active{opacity:.85}
+
+  .detail-block{background:var(--karte); border-radius:var(--radius); box-shadow:var(--schatten); padding:14px 16px; margin-bottom:14px}
+  .d-zeile{display:flex; gap:12px; padding:7px 0; border-bottom:1px dashed var(--linie)}
+  .d-zeile:last-child{border-bottom:none}
+  .d-label{flex:0 0 108px; font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--tinte-2); padding-top:2px}
+  .d-wert{flex:1; min-width:0; overflow-wrap:break-word; white-space:pre-line}
+  .d-wert.warnung{color:var(--lila); font-weight:600}
+  .detail-fotos{display:flex; gap:10px; flex-wrap:wrap}
+  .detail-fotos img{width:104px; height:104px; object-fit:cover; border-radius:10px}
+
+  .viewer{position:fixed; inset:0; z-index:50; background:rgba(20,22,26,.93); display:none; align-items:center; justify-content:center; padding:20px}
+  .viewer.offen{display:flex}
+  .viewer img{max-width:100%; max-height:100%; border-radius:8px}
+
+  .toast{
+    position:fixed; left:50%; bottom:96px; transform:translateX(-50%) translateY(20px);
+    background:var(--tinte); color:#fff; font-size:14px; padding:10px 18px; border-radius:999px;
+    opacity:0; pointer-events:none; transition:opacity .25s, transform .25s; z-index:80; max-width:86vw; text-align:center;
+  }
+  .toast.zeig{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  @media (prefers-reduced-motion:reduce){ *{transition:none !important; animation:none !important} }
+</style>
+</head>
+<body>
+
+<header class="kopf">
+  <h1>Stickaufträge</h1>
+  <p class="unterzeile" id="zusammenfassung">&nbsp;</p>
+</header>
+<div class="laufstich" aria-hidden="true"></div>
+
+<nav class="chips" id="chips" aria-label="Nach Status filtern"></nav>
+<div class="werkzeuge">
+  <button class="wz" id="wzSortieren">↕ Sortieren: <b id="sortLabel">Deadline</b></button>
+  <button class="wz stark" id="wzNeuerOrdner">+ Neuer Ordner</button>
+  <button class="wz" id="wzDaten" aria-label="Daten sichern und laden">⤓ Daten</button>
+  <button class="wz stark" id="wzInstallieren" hidden>⌂ App installieren</button>
+</div>
+<input type="file" id="fImport" accept="application/json,.json" hidden>
+
+<main class="liste" id="liste"></main>
+
+<div class="leer" id="leer" hidden>
+  <div class="rahmen" aria-hidden="true"><div class="innen"></div></div>
+  <p>Noch keine Aufträge im Rahmen.</p>
+  <p class="klein">Tippe auf +, um den ersten anzulegen.</p>
+</div>
+
+<button class="fab" id="fabNeu" aria-label="Neuen Auftrag anlegen">+</button>
+
+<!-- ── Formular ── -->
+<section class="sheet" id="sheetForm" aria-label="Auftrag bearbeiten">
+  <div class="sheet-kopf">
+    <button class="zurueck" data-akt="form-zu">‹ Zurück</button>
+    <h2 id="formTitel">Neuer Auftrag</h2>
+  </div>
+  <div class="sheet-body">
+
+    <div class="feld">
+      <label for="fPerson">Für wen</label>
+      <input type="text" id="fPerson" placeholder="Name" autocomplete="off">
+    </div>
+
+    <div class="feld">
+      <label for="fOrdner">Ordner</label>
+      <input type="text" id="fOrdner" list="ordnerListe" placeholder="z. B. Hochzeit Larissa &amp; Peter – leer lassen für Einzelstück" autocomplete="off">
+      <datalist id="ordnerListe"></datalist>
+    </div>
+
+    <div class="feld">
+      <label for="fMotiv">Motiv – was wird gestickt</label>
+      <textarea id="fMotiv"></textarea>
+    </div>
+
+    <div class="feld">
+      <span class="feld-titel">Status</span>
+      <div class="status-schalter" id="formStatusSchalter"></div>
+    </div>
+
+    <div class="feld">
+      <span class="feld-titel">Fotos (Vorlage, Skizze, Ergebnis)</span>
+      <div class="foto-reihe" id="fotoReihe"></div>
+      <input type="file" id="fFotos" accept="image/*" multiple hidden>
+      <p class="hinweis">Bis zu 4 Fotos, werden automatisch verkleinert.</p>
+    </div>
+
+    <div class="feld">
+      <span class="feld-titel">Garnfarbe</span>
+      <div class="wahl-chips" id="garnChips"></div>
+      <div id="garnWrap" hidden style="margin-top:9px">
+        <input type="text" id="fGarn" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="feld-reihe">
+      <div class="feld">
+        <label for="fTextil">Textil</label>
+        <input type="text" id="fTextil" list="textilListe" autocomplete="off">
+        <datalist id="textilListe"></datalist>
+      </div>
+      <div class="feld">
+        <label for="fTextilFarbe">Farbe Textil</label>
+        <input type="text" id="fTextilFarbe" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="feld" id="groesseFeld" hidden>
+      <span class="feld-titel">Größe &amp; Schnitt</span>
+      <div class="wahl-chips" id="groesseChips"></div>
+      <div class="wahl-chips" id="schnittChips" style="margin-top:8px"></div>
+    </div>
+
+    <div class="feld">
+      <span class="feld-titel">Platzierung</span>
+      <div class="wahl-chips" id="platzChips"></div>
+      <div id="platzSonstWrap" hidden style="margin-top:9px">
+        <input type="text" id="fPlatzSonst" placeholder="Platzierung frei eintippen …" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="feld-reihe">
+      <div class="feld">
+        <label for="fDatum">Auftrag vom</label>
+        <input type="date" id="fDatum">
+      </div>
+      <div class="feld">
+        <label for="fDeadline">Deadline</label>
+        <input type="date" id="fDeadline">
+      </div>
+    </div>
+    <p class="hinweis" id="fristHinweis" style="margin:-10px 0 16px"></p>
+
+    <div class="feld">
+      <span class="feld-titel">Bezahlung</span>
+      <div class="wahl-chips" id="zahlChips"></div>
+      <div id="betragWrap" style="margin-top:9px">
+        <input type="text" id="fBetrag" placeholder="Betrag, z. B. 25 € (optional)" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="feld">
+      <label for="fNotiz">Notizen</label>
+      <textarea id="fNotiz" placeholder="z. B. Unterlegstiche prüfen, Vlies nicht vergessen …"></textarea>
+    </div>
+
+    <button class="knopf" id="btnSpeichern">Auftrag speichern</button>
+    <p class="hinweis" id="formFehler" style="color:var(--beere)"></p>
+  </div>
+</section>
+
+<!-- ── Detail ── -->
+<section class="sheet" id="sheetDetail" aria-label="Auftragsdetails">
+  <div class="sheet-kopf">
+    <button class="zurueck" data-akt="detail-zu">‹ Zurück</button>
+    <h2 id="detailTitel">Auftrag</h2>
+  </div>
+  <div class="sheet-body" id="detailBody"></div>
+</section>
+
+<div class="blatt" id="blatt"><div class="blatt-inhalt" id="blattInhalt"></div></div>
+<div class="viewer" id="viewer"><img id="viewerBild" alt="Foto in groß"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+
+/* ── Stammdaten ────────────────────────── */
+const STATUS = {
+  offen:      { label:"Offen",     farbe:"#c99a3a", hell:"#dcb15c" },
+  fertig:     { label:"Fertig",    farbe:"#4a7c59", hell:"#6c9a79" },
+  uebergeben: { label:"Übergeben", farbe:"#a2a7ad", hell:"#bfc3c8" }
+};
+const STATUS_REIHE = ["offen","fertig","uebergeben"];
+const ZAHLUNG = {
+  offen:    { label:"Nicht gezahlt", farbe:"#5c6168" },
+  gezahlt:  { label:"Gezahlt",       farbe:"#4a7c59" },
+  geschenk: { label:"🎁 Geschenk",   farbe:"#37518f" }
+};
+const ZAHLUNG_REIHE = ["offen","gezahlt","geschenk"];
+const GARN_ARTEN = { einfarbig:"Einfarbig", mehrfarbig:"Mehrfarbig" };
+const GROESSEN = ["XS","S","M","L","XL","XXL","3XL"];
+const SCHNITTE = ["Unisex","Frauenschnitt"];
+const KLEIDUNG_WOERTER = ["shirt","hoodie","sweat","pulli","pullover","longsleeve","polo","body","jacke","weste","kleid","hemd","bluse","top","trikot","strampler","anzug","hose","shorts","rock","bademantel","strick","fleece","poncho"];
+function istKleidung(txt){
+  const s = String(txt || "").toLowerCase().replace(/[\s\-\/]/g, "");
+  return KLEIDUNG_WOERTER.some(w => s.indexOf(w) !== -1);
+}
+
+const TEXTILIEN = [
+  "T-Shirt","Longsleeve","Poloshirt","Tanktop","Hemd","Bluse","Sweatshirt","Hoodie","Zip-Hoodie",
+  "Pullover","Strickjacke","Fleecejacke","Jeansjacke","Trainingsjacke","Weste","Kleid","Rock",
+  "Jogginghose","Shorts","Latzhose","Schlafanzug","Bademantel","Poncho",
+  "Babybody","Strampler","Lätzchen","Kinder-T-Shirt","Puppenkleidung",
+  "Schürze","Kochjacke","Arbeitsjacke",
+  "Handtuch (Frottee)","Gästehandtuch","Badetuch","Saunatuch","Waschlappen","Geschirrtuch","Topflappen",
+  "Bettwäsche","Kissenbezug","Deko-Kissenhülle","Sitzkissen","Wolldecke","Kuscheldecke",
+  "Tischdecke","Tischläufer","Platzset","Stoffserviette","Filzuntersetzer","Korkuntersetzer",
+  "Stoffbeutel / Jutebeutel","Turnbeutel","Einkaufsnetz","Rucksack","Kulturbeutel","Federmäppchen",
+  "Brotzeitbeutel","Brillenetui","Stoff-Portemonnaie","Schlüsselanhänger (Filz)",
+  "Schildkappe / Cap","Beanie / Mütze","Stirnband","Schal","Halstuch","Bandana",
+  "Socken","Hausschuhe","Handschuhe","Haarband","Stofftaschentuch",
+  "Hundehalstuch","Hundedecke","Katzenkissen",
+  "Vorhang","Wimpel","Wandbehang","Lesezeichen (Filz)","Nadelkissen",
+  "Patch / Aufnäher","Stoffstück / Testlappen","Klopapier (Scherzartikel)"
+];
+
+const BEISPIELE = {
+  motiv: [
+    "Lorbeerkranz, Namen in Schreibschrift, Datum darunter",
+    "Monogramm „L & P“ verschlungen, ca. 6 cm",
+    "Kleines Edelweiß, 5 cm, weiß mit gelbem Kern",
+    "Bergsilhouette mit Sonnenaufgang, 8 cm breit",
+    "Zwei ineinandergreifende Ringe, darunter 05.09.2026",
+    "Schriftzug „Hüttengaudi“ in Blockbuchstaben",
+    "Initialen K. H., 3 cm, schlicht ohne Verzierung",
+    "Blumenkranz aus Wildblumen, oben offen",
+    "Name „Marius“ in Kursivschrift, ca. 12 cm lang",
+    "Kleine Biene mit gestrichelter Flugbahn",
+    "Herz nur als Konturstich, nicht ausgefüllt",
+    "Anker mit Tau, maritim, ca. 7 cm",
+    "Tannenzweig mit Zapfen, diagonal gesetzt",
+    "Fliegenpilz, 4 cm, für den Kinderpulli",
+    "Hausberg-Umriss mit Höhenangabe darunter",
+    "Fuchskopf, minimalistische Linien, ohne Füllung",
+    "Datum 24.08.2026 in Ziffern, 1 cm hoch",
+    "Welle im Hokusai-Stil, stark vereinfacht",
+    "Olivenzweig-Kranz, Initialen mittig",
+    "Schriftzug „Guten Morgen“ mit kleiner Kaffeetasse"
+  ],
+  textil: TEXTILIEN,
+  textilFarbe: ["Weiß","Naturweiß / Ecru","Schwarz","Marineblau","Jeansblau","Hellgrau meliert","Anthrazit","Beige / Sand","Creme","Salbeigrün","Waldgrün","Olive","Bordeaux","Rostrot","Senfgelb","Terracotta","Altrosa","Lavendel","Petrol","Taupe"],
+  garnEin: ["Gold","Silber","Creme","Schwarz","Marineblau","Rot","Bordeaux","Altrosa","Salbeigrün","Waldgrün","Olive","Senfgelb","Ocker","Terracotta","Petrol","Türkis","Lavendel","Kupfer","Rosé","Anthrazit"],
+  garnMehr: ["Gold + Creme","Rot, Weiß, Grün","Salbei, Altrosa, Creme","Marine + Kupfer","Ocker, Rost, Olive","Pastell-Verlauf Rosa nach Flieder","Waldgrün + Senfgelb","Schwarz-Weiß, zweifarbig","Petrol, Türkis, Sand","Gold + Silber","Herbsttöne: Rost, Ocker, Braun","Beere, Altrosa, Creme","Blau-Verlauf hell nach dunkel","Grün-Töne, drei Abstufungen","Terracotta + Naturweiß","Regenbogen, sechs Farben","Lavendel, Salbei, Creme","Kupfer + Anthrazit","Sonnengelb, Orange, Rot","Nachtblau + Gold"]
+};
+
+const PLATZ_VORGABEN = ["Brust links","Brust mittig","Rücken","Ärmel links","Ärmel rechts","Bordüre","Ecke unten rechts","Nacken"];
+const SORTIERUNGEN = [
+  { id:"deadline", label:"Deadline",        info:"Dringendes zuerst" },
+  { id:"neueste",  label:"Neueste zuerst",  info:"Nach Auftragsdatum" },
+  { id:"aelteste", label:"Älteste zuerst",  info:"Nach Auftragsdatum" },
+  { id:"status",   label:"Status",          info:"Offen · Fertig · Übergeben" },
+  { id:"name",     label:"Name A–Z",        info:"Nach Person" }
+];
+const ERLEDIGT = "✓ Erledigt";
+const OHNE = "Ohne Ordner";
+
+/* ── Speicher ──────────────────────────── */
+const hatCloud = typeof window.storage !== "undefined" && window.storage;
+async function spLies(key){
+  try{
+    if(hatCloud){ const r = await window.storage.get(key); return r ? JSON.parse(r.value) : null; }
+    const v = localStorage.getItem(key); return v ? JSON.parse(v) : null;
+  }catch(e){ return null; }
+}
+async function spSchreib(key, wert){
+  const s = JSON.stringify(wert);
+  if(hatCloud){ await window.storage.set(key, s); } else { localStorage.setItem(key, s); }
+}
+async function spLoesch(key){
+  try{ if(hatCloud){ await window.storage.delete(key); } else { localStorage.removeItem(key); } }catch(e){}
+}
+
+const INDEX_KEY = "stick-auftraege-index";
+const ANSICHT_KEY = "stick-ansicht";
+const ORDNER_KEY = "stick-ordner";
+let auftraege = [];
+let ordner = [];
+let filter = "alle";
+let sortId = "deadline";
+let zuOrdner = [ERLEDIGT];
+let frischId = null;
+let blattModus = null, blattDaten = null;
+let formFotos = [], formFotosLaden = Promise.resolve();
+let bearbeiteId = null, detailId = null;
+let formStatus = "offen", formZahlung = "offen", garnArt = "";
+let formGroesse = "", formSchnitt = "", platzWert = "", platzSonst = false;
+
+/* ── Helfer ────────────────────────────── */
+const $ = id => document.getElementById(id);
+function esc(s){
+  return String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function heuteISO(){
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+}
+function fmtDatum(iso){ if(!iso) return "–"; const p = iso.split("-"); return p[2] + "." + p[1] + "." + p[0]; }
+function fmtKurz(iso){ if(!iso) return ""; const p = iso.split("-"); return p[2] + "." + p[1] + "."; }
+function tageBis(iso){
+  const heute = new Date(); heute.setHours(0,0,0,0);
+  return Math.round((new Date(iso + "T00:00:00") - heute) / 86400000);
+}
+function istAktiv(a){ return a.status === "offen"; }
+/* Erledigt = übergeben UND bezahlt; bei Geschenken reicht übergeben */
+function istErledigt(a){
+  return a.status === "uebergeben" && (a.zahlung === "gezahlt" || a.zahlung === "geschenk");
+}
+function fristInfo(a){
+  if(!istAktiv(a)) return null;
+  if(!a.deadline) return { text:"Keine Deadline", klasse:"keine-frist" };
+  const t = tageBis(a.deadline);
+  if(t < 0)   return { text:(t === -1 ? "1 Tag überfällig" : Math.abs(t) + " Tage überfällig"), klasse:"frist-rot" };
+  if(t === 0) return { text:"heute fällig", klasse:"frist-rot" };
+  if(t === 1) return { text:"morgen fällig", klasse:"frist-warn" };
+  if(t <= 7)  return { text:"noch " + t + " Tage · " + fmtKurz(a.deadline), klasse:"frist-warn" };
+  return { text:"bis " + fmtDatum(a.deadline), klasse:"frist-ok" };
+}
+function garnText(a){
+  if(a.garnArt === "mehrfarbig") return "Mehrfarbig" + (a.garn ? " · " + a.garn : "");
+  if(a.garnArt === "einfarbig")  return a.garn || "Einfarbig";
+  return a.garn || "";
+}
+function toast(txt){
+  const t = $("toast");
+  t.textContent = txt; t.classList.add("zeig");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("zeig"), 2200);
+}
+function neueId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function datalistFuellen(id, werte){
+  $(id).innerHTML = werte.map(w => '<option value="' + esc(w) + '"></option>').join("");
+}
+async function ansichtSichern(){ try{ await spSchreib(ANSICHT_KEY, { sortId, zuOrdner }); }catch(e){} }
+async function ordnerSichern(){ try{ await spSchreib(ORDNER_KEY, ordner); }catch(e){} }
+
+const ROT_FELDER = [
+  { id:"fMotiv",       pool:() => BEISPIELE.motiv },
+  { id:"fTextil",      pool:() => BEISPIELE.textil },
+  { id:"fTextilFarbe", pool:() => BEISPIELE.textilFarbe },
+  { id:"fGarn",        pool:() => garnArt === "mehrfarbig" ? BEISPIELE.garnMehr : BEISPIELE.garnEin }
+];
+function rotSetzen(f){
+  const el = $(f.id), pool = f.pool();
+  if(!el || !pool || !pool.length) return;
+  el.placeholder = "z. B. " + pool[Math.floor(Math.random() * pool.length)];
+}
+function rotAlleNeu(){ for(const f of ROT_FELDER) rotSetzen(f); }
+
+/* ── Sortieren ─────────────────────────── */
+function sortSchluessel(a){
+  const stGruppe = a.status === "offen" ? 0 : (a.status === "fertig" ? 1 : 2);
+  const name = (a.person || "").toLowerCase();
+  switch(sortId){
+    case "neueste":  return "9|" + (9999999999999 - new Date((a.datum || "1970-01-01") + "T00:00:00").getTime()).toString().padStart(14,"0") + "|" + name;
+    case "aelteste": return "9|" + (a.datum || "9999-99-99") + "|" + name;
+    case "status":   return stGruppe + "|" + (a.deadline || "9999-99-99") + "|" + name;
+    case "name":     return "9|" + name + "|" + (a.datum || "");
+    default:         return stGruppe + "|" + (a.deadline || "9999-99-99") + "|" + (a.datum || "");
+  }
+}
+function sortiert(liste){
+  return liste.slice().sort((x,y) => {
+    const sx = sortSchluessel(x), sy = sortSchluessel(y);
+    return sx < sy ? -1 : (sx > sy ? 1 : 0);
+  });
+}
+
+/* ── Liste ─────────────────────────────── */
+function renderChips(){
+  const zaehl = s => auftraege.filter(a => a.status === s).length;
+  let html = chipHtml("alle", "Alle", auftraege.length);
+  for(const s of STATUS_REIHE) html += chipHtml(s, STATUS[s].label, zaehl(s));
+  $("chips").innerHTML = html;
+  $("sortLabel").textContent = (SORTIERUNGEN.find(s => s.id === sortId) || SORTIERUNGEN[0]).label;
+}
+function chipHtml(wert, label, n){
+  return '<button class="chip' + (filter === wert ? ' aktiv' : '') + '" data-filter="' + wert + '">' +
+         esc(label) + (n ? ' <b>' + n + '</b>' : '') + '</button>';
+}
+
+function karteHtml(a, imArchiv){
+  const st = STATUS[a.status] || STATUS.offen;
+  const frist = fristInfo(a);
+  const garn = garnText(a);
+  const unter = [a.textil, a.textilFarbe, a.groesse ? "Gr. " + a.groesse : "", a.schnitt, a.platzierung].filter(Boolean).join(" · ");
+  const metaTeile = [];
+  if(a.datum) metaTeile.push("Auftrag " + fmtDatum(a.datum));
+  if(!istAktiv(a) && a.deadline) metaTeile.push("Deadline war " + fmtDatum(a.deadline));
+  if(imArchiv && (a.ordner || "").trim()) metaTeile.push("Ordner: " + a.ordner.trim());
+
+  const zahlKlasse = a.zahlung === "gezahlt" ? " gezahlt" : (a.zahlung === "geschenk" ? " geschenk" : "");
+  const zahlInhalt = a.zahlung === "geschenk" ? "🎁 Geschenk" : '<span class="mini-box" aria-hidden="true">✓</span>Bezahlt';
+
+  return (
+    '<div class="karte' + (a.id === frischId ? ' frisch' : '') + '" data-karte="' + a.id + '">' +
+      '<span class="garnstrang" style="--g1:' + st.farbe + ';--g2:' + st.hell + '"></span>' +
+      '<div class="karte-spalte">' +
+        '<button class="karte-flaeche" data-detail="' + a.id + '">' +
+          '<span class="person">' + esc(a.person) + '</span>' +
+          (a.motiv ? '<span class="motiv">' + esc(a.motiv) + '</span>' : '') +
+          (unter ? '<span class="banderole">' + esc(unter) + '</span>' : '') +
+          '<span class="karte-fuss">' +
+            (frist ? '<span class="marke ' + frist.klasse + '">' + esc(frist.text) + '</span>' : '') +
+            (garn ? '<span class="marke">🧵 ' + esc(garn) + '</span>' : '') +
+            (a.fotoAnzahl ? '<span class="marke">📷 ' + a.fotoAnzahl + '</span>' : '') +
+          '</span>' +
+          (metaTeile.length ? '<span class="meta">' + esc(metaTeile.join(" · ")) + '</span>' : '') +
+        '</button>' +
+        '<div class="karte-aktion">' +
+          '<button class="akt-knopf" data-statuszyklus="' + a.id + '" style="color:' + st.farbe + '"><span class="punkt"></span>' + st.label + '</button>' +
+          '<button class="akt-knopf' + zahlKlasse + '" data-zahlzyklus="' + a.id + '">' + zahlInhalt + '</button>' +
+          '<button class="akt-knopf griff" data-griff="' + a.id + '" aria-label="Ordner wählen oder Karte ziehen">' +
+            '<span class="punkte" aria-hidden="true">⠿</span><span class="txt">' +
+            ((a.ordner || "").trim() ? esc(a.ordner.trim()) : "Ordner") + '</span></button>' +
+          (a.betrag && a.zahlung !== "geschenk" ? '<span class="betrag-rechts">' + esc(a.betrag) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      (a.vorschau ? '<img class="thumb" src="' + a.vorschau + '" alt="">' : '') +
+    '</div>'
+  );
+}
+
+function ordnerHtml(name, posten, art){
+  const zu = zuOrdner.indexOf(name) !== -1;
+  const archiv = art === "archiv";
+  const info = archiv
+    ? posten.length + " Stück · abgeschlossen"
+    : (posten.length ? posten.length + " Stück" + (posten.filter(istAktiv).length ? " · " + posten.filter(istAktiv).length + " offen" : " · fertig") : "leer");
+  const zielWert = art === "eigen" ? name : (art === "ohne" ? "" : null);
+
+  let html = '<section class="ordner' + (archiv ? ' erledigt' : '') + '">' +
+    '<div class="ordner-kopf">' +
+      '<button class="ordner-titel" data-falten="' + esc(name) + '">' +
+        '<span class="ordner-pfeil">' + (zu ? "▸" : "▾") + '</span>' +
+        '<span class="ordner-name">' + esc(name) + '</span>' +
+        '<span class="ordner-zahl">' + esc(info) + '</span>' +
+      '</button>' +
+      (art === "eigen" ? '<button class="ordner-mehr" data-ordnermehr="' + esc(name) + '" aria-label="Ordner bearbeiten">⋯</button>' : '') +
+    '</div><div class="ordner-linie"></div>';
+
+  if(!zu){
+    html += '<div class="ordner-inhalt"' + (zielWert !== null ? ' data-dropziel="' + esc(zielWert) + '"' : '') + '>';
+    html += posten.length
+      ? posten.map(a => karteHtml(a, archiv)).join("")
+      : (zielWert !== null ? '<div class="ordner-leer">Noch leer – zieh eine Karte am ⠿ hierher</div>' : '');
+    html += '</div>';
+  }
+  return html + '</section>';
+}
+
+function renderListe(){
+  const gefiltert = auftraege.filter(a => filter === "alle" ? true : a.status === filter);
+  const geordnet = sortiert(gefiltert);
+  $("leer").hidden = auftraege.length > 0;
+
+  const offenN = auftraege.filter(istAktiv).length;
+  const ohneFrist = auftraege.filter(a => istAktiv(a) && !a.deadline).length;
+  const unbezahlt = auftraege.filter(a => a.zahlung === "offen" && a.status !== "offen").length;
+  let zus;
+  if(auftraege.length === 0) zus = "Dein Überblick über alle Stickprojekte";
+  else if(offenN === 0) zus = "Alles fertig – nichts offen 🎉";
+  else{
+    zus = offenN + (offenN === 1 ? " offener Auftrag" : " offene Aufträge");
+    if(ohneFrist) zus += " · " + ohneFrist + " ohne Deadline";
+  }
+  if(unbezahlt) zus += " · " + unbezahlt + " noch nicht gezahlt";
+  $("zusammenfassung").textContent = zus;
+
+  /* Bei aktivem Status-Filter bleibt alles sichtbar, sonst wandert Erledigtes ins Archiv */
+  const archivTrennen = filter === "alle";
+  const laufend = archivTrennen ? geordnet.filter(a => !istErledigt(a)) : geordnet;
+  const archiv  = archivTrennen ? geordnet.filter(istErledigt) : [];
+
+  let html = "";
+  for(const o of ordner){
+    html += ordnerHtml(o, laufend.filter(a => (a.ordner || "").trim() === o), "eigen");
+  }
+  const ohne = laufend.filter(a => !(a.ordner || "").trim());
+  if(ohne.length || ordner.length){
+    html += ordnerHtml(OHNE, ohne, "ohne");
+  }
+  if(archiv.length) html += ordnerHtml(ERLEDIGT, archiv, "archiv");
+  $("liste").innerHTML = html;
+}
+function renderAlles(){ renderChips(); renderListe(); }
+
+/* ── Ordner verwalten ──────────────────── */
+async function ordnerAnlegen(name){
+  const n = String(name || "").trim();
+  if(!n) return false;
+  if(n === ERLEDIGT || n === OHNE){ toast("Dieser Name ist vergeben"); return false; }
+  if(ordner.indexOf(n) !== -1){ toast("Ordner gibt es schon"); return false; }
+  ordner.push(n);
+  await ordnerSichern();
+  renderAlles();
+  toast("Ordner „" + n + "“ angelegt");
+  return true;
+}
+async function ordnerUmbenennen(alt, neu){
+  const n = String(neu || "").trim();
+  if(!n || n === alt) return;
+  if(ordner.indexOf(n) !== -1){ toast("Ordner gibt es schon"); return; }
+  ordner[ordner.indexOf(alt)] = n;
+  for(const a of auftraege) if((a.ordner || "").trim() === alt) a.ordner = n;
+  const i = zuOrdner.indexOf(alt); if(i !== -1) zuOrdner[i] = n;
+  await ordnerSichern(); await spSchreib(INDEX_KEY, auftraege); await ansichtSichern();
+  renderAlles();
+  toast("Umbenannt in „" + n + "“");
+}
+async function ordnerLoeschen(name){
+  ordner = ordner.filter(o => o !== name);
+  let betroffen = 0;
+  for(const a of auftraege) if((a.ordner || "").trim() === name){ a.ordner = ""; betroffen++; }
+  await ordnerSichern(); await spSchreib(INDEX_KEY, auftraege);
+  renderAlles();
+  toast(betroffen ? "Ordner gelöscht, " + betroffen + " Aufträge bleiben erhalten" : "Ordner gelöscht");
+}
+async function ordnerZuweisen(id, name){
+  const a = auftraege.find(x => x.id === id);
+  if(!a) return;
+  const n = String(name || "").trim();
+  if((a.ordner || "") === n) return;
+  a.ordner = n;
+  if(n && ordner.indexOf(n) === -1){ ordner.push(n); await ordnerSichern(); }
+  await spSchreib(INDEX_KEY, auftraege);
+  renderAlles(); frischMarkieren(id);
+  toast(n ? "In „" + n + "“ verschoben" : "Aus dem Ordner genommen");
+}
+
+/* ── Sicherung: alles in eine Datei und zurück ── */
+async function datenExportieren(){
+  const paket = {
+    typ:"stickauftraege", version:1, erstellt:new Date().toISOString(),
+    auftraege, ordner, ansicht:{ sortId, zuOrdner }, fotos:{}
+  };
+  for(const a of auftraege){
+    if(!a.fotoAnzahl) continue;
+    const f = await spLies("stick-fotos-" + a.id);
+    if(Array.isArray(f) && f.length) paket.fotos[a.id] = f;
+  }
+  const blob = new Blob([JSON.stringify(paket)], { type:"application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "stickauftraege-" + heuteISO() + ".json";
+  document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  blattSchliessen();
+  toast("Sicherung gespeichert ✓");
+}
+async function datenImportieren(datei){
+  let paket;
+  try{ paket = JSON.parse(await datei.text()); }
+  catch(e){ toast("Datei nicht lesbar"); return; }
+  if(!paket || !Array.isArray(paket.auftraege)){ toast("Das ist keine Sicherung dieser App"); return; }
+  auftraege = paket.auftraege;
+  ordner = Array.isArray(paket.ordner) ? paket.ordner : [];
+  if(paket.ansicht){
+    if(paket.ansicht.sortId && SORTIERUNGEN.some(s => s.id === paket.ansicht.sortId)) sortId = paket.ansicht.sortId;
+    if(Array.isArray(paket.ansicht.zuOrdner)) zuOrdner = paket.ansicht.zuOrdner;
+  }
+  const fotos = paket.fotos || {};
+  for(const id in fotos){ try{ await spSchreib("stick-fotos-" + id, fotos[id]); }catch(e){} }
+  migrieren();
+  await spSchreib(INDEX_KEY, auftraege);
+  await ordnerSichern(); await ansichtSichern();
+  blattSchliessen(); renderAlles();
+  toast(auftraege.length + " Aufträge geladen ✓");
+}
+
+/* ── Blatt von unten ───────────────────── */
+function blattOeffnen(modus, daten){
+  blattModus = modus; blattDaten = daten || null;
+  renderBlatt();
+  $("blatt").classList.add("offen");
+}
+function blattSchliessen(){ $("blatt").classList.remove("offen"); blattModus = null; blattDaten = null; }
+function renderBlatt(){
+  let html = "";
+  if(blattModus === "sort"){
+    html = '<h3>Sortieren</h3><p class="klein">Gilt innerhalb jedes Ordners</p>' +
+      SORTIERUNGEN.map(s =>
+        '<button class="b-option' + (s.id === sortId ? ' aktiv' : '') + '" data-sortwahl="' + s.id + '">' +
+        esc(s.label) + (s.id === sortId ? '<span class="haken">✓</span>' : '') + '</button>'
+      ).join("");
+  }
+  else if(blattModus === "zuweisen"){
+    const a = auftraege.find(x => x.id === blattDaten);
+    const aktuell = a ? (a.ordner || "").trim() : "";
+    html = '<h3>Ordner wählen</h3><p class="klein">' + (a ? "Für „" + esc(a.person) + "“" : "") + '</p>' +
+      '<button class="b-option' + (aktuell ? '' : ' aktiv') + '" data-owahl="">Ohne Ordner' +
+        (aktuell ? '' : '<span class="haken">✓</span>') + '</button>' +
+      ordner.map(o =>
+        '<button class="b-option' + (o === aktuell ? ' aktiv' : '') + '" data-owahl="' + esc(o) + '">' +
+        esc(o) + (o === aktuell ? '<span class="haken">✓</span>' : '') + '</button>'
+      ).join("") +
+      '<div class="b-neu"><input type="text" id="blattEingabe" placeholder="Neuer Ordner …" autocomplete="off">' +
+      '<button data-blattok="1">Anlegen</button></div>';
+  }
+  else if(blattModus === "neu"){
+    html = '<h3>Neuer Ordner</h3><p class="klein">Zum Beispiel ein Anlass, für den du mehrere Stücke stickst</p>' +
+      '<div class="b-neu"><input type="text" id="blattEingabe" placeholder="Name des Ordners" autocomplete="off">' +
+      '<button data-blattok="1">Anlegen</button></div>';
+  }
+  else if(blattModus === "daten"){
+    const fotoN = auftraege.reduce((s,a) => s + (a.fotoAnzahl || 0), 0);
+    html = '<h3>Daten sichern</h3>' +
+      '<p class="klein">Die App speichert alles direkt in diesem Browser. Mit einer Sicherungsdatei nimmst du deine Aufträge auf ein anderes Gerät mit.</p>' +
+      '<button class="b-option" data-daten="export">⤓ Sicherung speichern' +
+        '<span class="haken">' + auftraege.length + ' Aufträge · ' + fotoN + ' Fotos</span></button>' +
+      '<button class="b-option" data-daten="import">⤒ Sicherung laden</button>' +
+      '<p class="klein" style="margin-top:14px">Laden ersetzt alles, was gerade in dieser App steht.</p>';
+  }
+  else if(blattModus === "ordner"){
+    html = '<h3>' + esc(blattDaten) + '</h3><p class="klein">Ordner bearbeiten</p>' +
+      '<div class="b-neu"><input type="text" id="blattEingabe" value="' + esc(blattDaten) + '" autocomplete="off">' +
+      '<button data-blattok="1">Umbenennen</button></div>' +
+      '<button class="b-option warn" data-oloeschen="' + esc(blattDaten) + '" style="margin-top:16px">Ordner löschen (Aufträge bleiben)</button>';
+  }
+  $("blattInhalt").innerHTML = html;
+  const inp = $("blattEingabe");
+  if(inp && blattModus !== "ordner") setTimeout(() => inp.focus(), 60);
+}
+async function blattBestaetigen(){
+  const inp = $("blattEingabe");
+  if(!inp) return;
+  const wert = inp.value.trim();
+  if(!wert){ inp.focus(); return; }
+  if(blattModus === "neu"){ if(await ordnerAnlegen(wert)) blattSchliessen(); return; }
+  if(blattModus === "zuweisen"){ const id = blattDaten; blattSchliessen(); await ordnerZuweisen(id, wert); return; }
+  if(blattModus === "ordner"){ const alt = blattDaten; blattSchliessen(); await ordnerUmbenennen(alt, wert); return; }
+}
+
+/* ── Karten ziehen ─────────────────────── */
+let zieh = null;
+function ziehStart(e, id, griff){
+  if(e.button !== undefined && e.button !== 0) return;
+  zieh = { id, griff, x0:e.clientX, y0:e.clientY, aktiv:false, klon:null, ziel:null, zielEl:null, rollen:0 };
+  try{ griff.setPointerCapture(e.pointerId); }catch(err){}
+}
+function ziehBewegen(e){
+  if(!zieh) return;
+  const dx = e.clientX - zieh.x0, dy = e.clientY - zieh.y0;
+  if(!zieh.aktiv){
+    if(Math.sqrt(dx*dx + dy*dy) < 10) return;
+    const karte = zieh.griff.closest(".karte");
+    if(!karte){ zieh = null; return; }
+    const r = karte.getBoundingClientRect();
+    const klon = karte.cloneNode(true);
+    klon.classList.add("zieh");
+    klon.style.width = r.width + "px";
+    klon.style.left = r.left + "px";
+    klon.style.top = r.top + "px";
+    document.body.appendChild(klon);
+    zieh.klon = klon;
+    zieh.gx = zieh.x0 - r.left;
+    zieh.gy = zieh.y0 - r.top;
+    karte.classList.add("zieh-quelle");
+    zieh.quelle = karte;
+    zieh.aktiv = true;
+    rollenSchleife();
+  }
+  e.preventDefault();
+  zieh.klon.style.left = (e.clientX - zieh.gx) + "px";
+  zieh.klon.style.top  = (e.clientY - zieh.gy) + "px";
+
+  const rand = 90;
+  zieh.rollen = e.clientY < rand ? -14 : (e.clientY > window.innerHeight - rand ? 14 : 0);
+
+  const unter = document.elementFromPoint(e.clientX, e.clientY);
+  const zielEl = unter ? unter.closest("[data-dropziel]") : null;
+  if(zielEl !== zieh.zielEl){
+    if(zieh.zielEl) zieh.zielEl.classList.remove("drueber");
+    zieh.zielEl = zielEl;
+    if(zielEl){ zielEl.classList.add("drueber"); zieh.ziel = zielEl.getAttribute("data-dropziel"); }
+    else zieh.ziel = null;
+  }
+}
+function rollenSchleife(){
+  if(!zieh || !zieh.aktiv) return;
+  if(zieh.rollen) window.scrollBy(0, zieh.rollen);
+  requestAnimationFrame(rollenSchleife);
+}
+function ziehEnde(){
+  if(!zieh) return;
+  const { id, aktiv, ziel } = zieh;
+  if(zieh.klon) zieh.klon.remove();
+  if(zieh.quelle) zieh.quelle.classList.remove("zieh-quelle");
+  if(zieh.zielEl) zieh.zielEl.classList.remove("drueber");
+  zieh = null;
+  if(!aktiv){ blattOeffnen("zuweisen", id); return; }
+  if(ziel !== null) ordnerZuweisen(id, ziel);
+}
+
+/* ── Formular ──────────────────────────── */
+function renderFormStatus(){
+  $("formStatusSchalter").innerHTML = STATUS_REIHE.map(s =>
+    '<button class="status-knopf' + (formStatus === s ? ' aktiv' : '') + '" data-fstatus="' + s + '" style="--sf:' + STATUS[s].farbe + '"><span class="punkt"></span>' + STATUS[s].label + '</button>'
+  ).join("");
+}
+function renderGarn(){
+  $("garnChips").innerHTML = Object.keys(GARN_ARTEN).map(k =>
+    '<button class="wahl-chip' + (garnArt === k ? ' aktiv' : '') + '" data-garnart="' + k + '" style="--wf:var(--garn-blau)">' + GARN_ARTEN[k] + '</button>'
+  ).join("");
+  $("garnWrap").hidden = !garnArt;
+  if(garnArt) rotSetzen(ROT_FELDER[3]);
+}
+function renderGroesse(){
+  const zeigen = istKleidung($("fTextil").value);
+  $("groesseFeld").hidden = !zeigen;
+  if(!zeigen) return;
+  $("groesseChips").innerHTML = GROESSEN.map(g =>
+    '<button class="wahl-chip' + (formGroesse === g ? ' aktiv' : '') + '" data-groesse="' + g + '">' + g + '</button>'
+  ).join("");
+  $("schnittChips").innerHTML = SCHNITTE.map(s =>
+    '<button class="wahl-chip' + (formSchnitt === s ? ' aktiv' : '') + '" data-schnitt="' + s + '" style="--wf:var(--garn-blau)">' + s + '</button>'
+  ).join("");
+}
+function renderPlatz(){
+  let html = PLATZ_VORGABEN.map(p =>
+    '<button class="wahl-chip' + (!platzSonst && platzWert === p ? ' aktiv' : '') + '" data-platz="' + esc(p) + '">' + esc(p) + '</button>'
+  ).join("");
+  html += '<button class="wahl-chip sonst' + (platzSonst ? ' aktiv' : '') + '" data-platz-sonst="1" style="--wf:var(--garn-blau)">Sonstiges …</button>';
+  $("platzChips").innerHTML = html;
+  $("platzSonstWrap").hidden = !platzSonst;
+}
+function renderZahlung(){
+  $("zahlChips").innerHTML = ZAHLUNG_REIHE.map(z =>
+    '<button class="wahl-chip' + (formZahlung === z ? ' aktiv' : '') + '" data-zahlung="' + z + '" style="--wf:' + ZAHLUNG[z].farbe + '">' + ZAHLUNG[z].label + '</button>'
+  ).join("");
+  $("betragWrap").hidden = formZahlung === "geschenk";
+}
+function renderFristHinweis(){
+  const h = $("fristHinweis");
+  if($("fDeadline").value){ h.textContent = ""; h.style.color = ""; }
+  else{ h.textContent = "Ohne Deadline – wird in der Übersicht lila markiert."; h.style.color = "var(--lila)"; }
+}
+
+function formOeffnen(id){
+  bearbeiteId = id || null;
+  formFotos = [];
+  $("formFehler").textContent = "";
+  $("formTitel").textContent = id ? "Auftrag bearbeiten" : "Neuer Auftrag";
+  datalistFuellen("ordnerListe", ordner);
+
+  const a = id ? auftraege.find(x => x.id === id) : null;
+  $("fPerson").value      = a ? a.person : "";
+  $("fOrdner").value      = a ? (a.ordner || "") : "";
+  $("fMotiv").value       = a ? (a.motiv || "") : "";
+  $("fGarn").value        = a ? (a.garn || "") : "";
+  $("fTextil").value      = a ? (a.textil || "") : "";
+  $("fTextilFarbe").value = a ? (a.textilFarbe || "") : "";
+  $("fDatum").value       = a ? (a.datum || heuteISO()) : heuteISO();
+  $("fDeadline").value    = a ? (a.deadline || "") : "";
+  $("fBetrag").value      = a ? (a.betrag || "") : "";
+  $("fNotiz").value       = a ? (a.notiz || "") : "";
+
+  formStatus  = a ? a.status : "offen";
+  formZahlung = a ? (a.zahlung || "offen") : "offen";
+  garnArt     = a ? (a.garnArt || "") : "";
+  formGroesse = a ? (a.groesse || "") : "";
+  formSchnitt = a ? (a.schnitt || "") : "";
+  platzWert   = a ? (a.platzierung || "") : "";
+  platzSonst  = !!(platzWert && PLATZ_VORGABEN.indexOf(platzWert) === -1);
+  $("fPlatzSonst").value = platzSonst ? platzWert : "";
+
+  rotAlleNeu();
+  renderFormStatus(); renderGarn(); renderGroesse(); renderPlatz(); renderZahlung();
+  renderFristHinweis(); renderFotoReihe();
+  detailSchliessen();
+  $("sheetForm").classList.add("offen");
+  $("sheetForm").querySelector(".sheet-body").scrollTop = 0;
+
+  if(id && a && a.fotoAnzahl){
+    $("fotoReihe").innerHTML = '<span class="hinweis">Lade Fotos …</span>';
+    formFotosLaden = spLies("stick-fotos-" + id).then(f => {
+      if(Array.isArray(f) && bearbeiteId === id) formFotos = f;
+      renderFotoReihe();
+    });
+  }else{
+    formFotosLaden = Promise.resolve();
+  }
+}
+function formSchliessen(){ $("sheetForm").classList.remove("offen"); }
+
+function renderFotoReihe(){
+  let html = formFotos.map((src,i) =>
+    '<span class="foto-kachel"><img src="' + src + '" alt="Foto ' + (i+1) + '">' +
+    '<button class="foto-x" data-fotoweg="' + i + '" aria-label="Foto entfernen">×</button></span>'
+  ).join("");
+  if(formFotos.length < 4) html += '<button class="foto-plus" id="fotoPlus" aria-label="Foto hinzufügen">+</button>';
+  $("fotoReihe").innerHTML = html;
+}
+function bildVerkleinern(datei){
+  return new Promise((resolve, reject) => {
+    const leser = new FileReader();
+    leser.onerror = () => reject(new Error("Lesefehler"));
+    leser.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Kein Bild"));
+      img.onload = () => {
+        const max = 900;
+        let w = img.width, h = img.height;
+        if(w > max || h > max){ const f = max / Math.max(w,h); w = Math.round(w*f); h = Math.round(h*f); }
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        c.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(c.toDataURL("image/jpeg", 0.72));
+      };
+      img.src = leser.result;
+    };
+    leser.readAsDataURL(datei);
+  });
+}
+async function fotosHinzufuegen(dateien){
+  for(const d of dateien){
+    if(formFotos.length >= 4) break;
+    try{ formFotos.push(await bildVerkleinern(d)); }
+    catch(e){ toast("Ein Foto konnte nicht geladen werden"); }
+  }
+  renderFotoReihe();
+}
+function thumbAus(dataUrl){
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const max = 260;
+      let w = img.width, h = img.height;
+      if(w > max || h > max){ const f = max / Math.max(w,h); w = Math.round(w*f); h = Math.round(h*f); }
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      ctx.fillStyle = "#f3f4f1"; ctx.fillRect(0,0,w,h);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(c.toDataURL("image/jpeg", 0.7));
+    };
+    img.onerror = () => resolve("");
+    img.src = dataUrl;
+  });
+}
+function frischMarkieren(id){
+  frischId = id;
+  const k = document.querySelector('[data-karte="' + id + '"]');
+  if(k) k.scrollIntoView({ block:"nearest" });
+  setTimeout(() => { if(frischId === id){ frischId = null; renderListe(); } }, 2000);
+}
+
+async function speichern(){
+  const person = $("fPerson").value.trim();
+  const motiv  = $("fMotiv").value.trim();
+  if(!person && !motiv){ $("formFehler").textContent = "Mindestens Person oder Motiv angeben."; return; }
+
+  const btn = $("btnSpeichern");
+  btn.disabled = true;
+  await formFotosLaden;
+
+  const id = bearbeiteId || neueId();
+  const kleidung = istKleidung($("fTextil").value);
+  const ordnerName = $("fOrdner").value.trim();
+  const eintrag = {
+    id,
+    person: person || "Ohne Namen",
+    ordner:      ordnerName,
+    motiv,
+    garnArt,
+    garn:        garnArt ? $("fGarn").value.trim() : "",
+    textil:      $("fTextil").value.trim(),
+    textilFarbe: $("fTextilFarbe").value.trim(),
+    groesse:     kleidung ? formGroesse : "",
+    schnitt:     kleidung ? formSchnitt : "",
+    platzierung: platzSonst ? $("fPlatzSonst").value.trim() : platzWert,
+    datum:       $("fDatum").value || heuteISO(),
+    deadline:    $("fDeadline").value || "",
+    status:      formStatus,
+    zahlung:     formZahlung,
+    betrag:      formZahlung === "geschenk" ? "" : $("fBetrag").value.trim(),
+    notiz:       $("fNotiz").value.trim(),
+    fotoAnzahl:  formFotos.length,
+    vorschau:    ""
+  };
+
+  try{
+    if(formFotos.length){
+      eintrag.vorschau = await thumbAus(formFotos[0]);
+      await spSchreib("stick-fotos-" + id, formFotos);
+    }else{
+      await spLoesch("stick-fotos-" + id);
+    }
+    const i = auftraege.findIndex(x => x.id === id);
+    if(i >= 0) auftraege[i] = eintrag; else auftraege.push(eintrag);
+    if(ordnerName && ordner.indexOf(ordnerName) === -1){ ordner.push(ordnerName); await ordnerSichern(); }
+    await spSchreib(INDEX_KEY, auftraege);
+
+    const warBearbeitung = !!bearbeiteId;
+    formSchliessen(); detailSchliessen();
+    frischId = id;
+    renderAlles();
+    window.scrollTo({ top:0, behavior:"smooth" });
+    frischMarkieren(id);
+    toast(warBearbeitung ? "Auftrag aktualisiert ✓" : "Auftrag gespeichert ✓");
+  }catch(e){
+    $("formFehler").textContent = "Speichern hat nicht geklappt – bitte nochmal versuchen.";
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+/* ── Detail ────────────────────────────── */
+function detailZeilen(a){
+  const zahlLabel = a.zahlung === "geschenk" ? "Geschenk"
+                  : (a.zahlung === "gezahlt" ? "Gezahlt" : "Noch nicht gezahlt") + (a.betrag ? " · " + a.betrag : "");
+  return [
+    ["Ordner", esc(a.ordner), false],
+    ["Motiv", esc(a.motiv), false],
+    ["Garnfarbe", esc(garnText(a)), false],
+    ["Textil", esc([a.textil, a.textilFarbe].filter(Boolean).join(" · ")), false],
+    ["Größe", esc([a.groesse ? "Gr. " + a.groesse : "", a.schnitt].filter(Boolean).join(" · ")), false],
+    ["Platzierung", esc(a.platzierung), false],
+    ["Auftrag vom", esc(fmtDatum(a.datum)), false],
+    ["Deadline", a.deadline ? esc(fmtDatum(a.deadline)) : "Keine Deadline gesetzt", !a.deadline],
+    ["Bezahlung", esc(zahlLabel), false],
+    ["Notizen", esc(a.notiz), false]
+  ].filter(z => z[1]);
+}
+function fristBlockHtml(a){
+  const frist = fristInfo(a);
+  return frist ? '<span class="marke ' + frist.klasse + '">' + esc(frist.text) + '</span>' : "";
+}
+function detailInfosAktualisieren(a){
+  const box = $("detailInfos");
+  if(!box) return;
+  box.innerHTML = detailZeilen(a).map(z =>
+    '<div class="d-zeile"><span class="d-label">' + esc(z[0]) + '</span>' +
+    '<span class="d-wert' + (z[2] ? ' warnung' : '') + '">' + z[1] + '</span></div>'
+  ).join("");
+}
+async function detailZeigen(id){
+  const a = auftraege.find(x => x.id === id);
+  if(!a) return;
+  detailId = id;
+  $("detailTitel").textContent = a.person;
+  $("detailBody").innerHTML =
+    '<div class="detail-block">' +
+      '<span class="feld-titel">Status</span>' +
+      '<div class="status-schalter" id="detailStatusBox">' +
+        STATUS_REIHE.map(s =>
+          '<button class="status-knopf' + (a.status === s ? ' aktiv' : '') + '" data-status="' + s + '" style="--sf:' + STATUS[s].farbe + '"><span class="punkt"></span>' + STATUS[s].label + '</button>'
+        ).join("") +
+      '</div>' +
+      '<div id="detailFrist" style="margin-top:12px">' + fristBlockHtml(a) + '</div>' +
+    '</div>' +
+    '<div class="detail-block">' +
+      '<span class="feld-titel">Bezahlung</span>' +
+      '<div class="wahl-chips" id="detailZahlBox">' +
+        ZAHLUNG_REIHE.map(z =>
+          '<button class="wahl-chip' + (a.zahlung === z ? ' aktiv' : '') + '" data-dzahl="' + z + '" style="--wf:' + ZAHLUNG[z].farbe + '">' + ZAHLUNG[z].label + '</button>'
+        ).join("") +
+      '</div>' +
+    '</div>' +
+    '<div class="detail-block" id="detailInfos"></div>' +
+    (a.fotoAnzahl ? '<div class="detail-block"><div class="detail-fotos" id="detailFotos">Lade Fotos …</div></div>' : '') +
+    '<button class="knopf leise" data-akt="bearbeiten">Bearbeiten</button>' +
+    '<div style="height:10px"></div>' +
+    '<button class="knopf rot" id="btnLoeschen">Auftrag löschen</button>';
+  detailInfosAktualisieren(a);
+  $("sheetDetail").classList.add("offen");
+
+  if(a.fotoAnzahl){
+    const fotos = await spLies("stick-fotos-" + id);
+    const box = $("detailFotos");
+    if(box && detailId === id){
+      box.innerHTML = Array.isArray(fotos) && fotos.length
+        ? fotos.map((f,i) => '<img src="' + f + '" data-gross="' + i + '" alt="Foto ' + (i+1) + '">').join("")
+        : '<span class="hinweis">Fotos konnten nicht geladen werden.</span>';
+      box._fotos = fotos || [];
+    }
+  }
+}
+function detailSchliessen(){ $("sheetDetail").classList.remove("offen"); detailId = null; }
+
+async function statusSetzen(neu){
+  const a = auftraege.find(x => x.id === detailId);
+  if(!a || a.status === neu) return;
+  a.status = neu;
+  const box = $("detailStatusBox");
+  if(box) box.querySelectorAll("[data-status]").forEach(b => b.classList.toggle("aktiv", b.dataset.status === neu));
+  const f = $("detailFrist");
+  if(f) f.innerHTML = fristBlockHtml(a);
+  await spSchreib(INDEX_KEY, auftraege);
+  renderAlles();
+  toast("Status: " + STATUS[neu].label);
+}
+async function zahlungSetzen(neu){
+  const a = auftraege.find(x => x.id === detailId);
+  if(!a || a.zahlung === neu) return;
+  a.zahlung = neu;
+  if(neu === "geschenk") a.betrag = "";
+  const box = $("detailZahlBox");
+  if(box) box.querySelectorAll("[data-dzahl]").forEach(b => b.classList.toggle("aktiv", b.dataset.dzahl === neu));
+  detailInfosAktualisieren(a);
+  await spSchreib(INDEX_KEY, auftraege);
+  renderAlles();
+  toast(neu === "geschenk" ? "Als Geschenk markiert" : (neu === "gezahlt" ? "Als gezahlt markiert" : "Als offen markiert"));
+}
+async function statusZyklus(id){
+  const a = auftraege.find(x => x.id === id);
+  if(!a) return;
+  a.status = STATUS_REIHE[(STATUS_REIHE.indexOf(a.status) + 1) % STATUS_REIHE.length];
+  await spSchreib(INDEX_KEY, auftraege);
+  renderAlles(); frischMarkieren(id);
+  toast("Status: " + STATUS[a.status].label);
+}
+async function zahlungZyklus(id){
+  const a = auftraege.find(x => x.id === id);
+  if(!a) return;
+  a.zahlung = ZAHLUNG_REIHE[(ZAHLUNG_REIHE.indexOf(a.zahlung || "offen") + 1) % ZAHLUNG_REIHE.length];
+  if(a.zahlung === "geschenk") a.betrag = "";
+  await spSchreib(INDEX_KEY, auftraege);
+  renderAlles(); frischMarkieren(id);
+  toast(a.zahlung === "geschenk" ? "🎁 Geschenk" : (a.zahlung === "gezahlt" ? "Als gezahlt markiert" : "Als nicht gezahlt markiert"));
+}
+async function loeschen(){
+  const btn = $("btnLoeschen");
+  if(btn.dataset.sicher !== "1"){
+    btn.dataset.sicher = "1";
+    btn.textContent = "Wirklich löschen? Nochmal tippen";
+    setTimeout(() => { if(btn.isConnected){ btn.dataset.sicher = ""; btn.textContent = "Auftrag löschen"; } }, 3000);
+    return;
+  }
+  const id = detailId;
+  auftraege = auftraege.filter(x => x.id !== id);
+  await spSchreib(INDEX_KEY, auftraege);
+  await spLoesch("stick-fotos-" + id);
+  detailSchliessen(); renderAlles();
+  toast("Auftrag gelöscht");
+}
+
+/* ── Ereignisse ────────────────────────── */
+document.addEventListener("pointerdown", e => {
+  const griff = e.target.closest("[data-griff]");
+  if(griff) ziehStart(e, griff.dataset.griff, griff);
+});
+document.addEventListener("pointermove", ziehBewegen, { passive:false });
+document.addEventListener("pointerup", ziehEnde);
+document.addEventListener("pointercancel", ziehEnde);
+
+document.addEventListener("click", e => {
+  const t = e.target.closest("button, img[data-gross]");
+  if(!t){ if(e.target.id === "viewer") $("viewer").classList.remove("offen"); return; }
+  if(t.hasAttribute("data-griff")) return;   /* wird beim Loslassen behandelt */
+
+  if(t.dataset.filter){ filter = t.dataset.filter; renderAlles(); return; }
+  if(t.id === "wzSortieren"){ blattOeffnen("sort"); return; }
+  if(t.id === "wzNeuerOrdner"){ blattOeffnen("neu"); return; }
+  if(t.id === "wzDaten"){ blattOeffnen("daten"); return; }
+  if(t.id === "wzInstallieren"){ appInstallieren(); return; }
+  if(t.dataset.daten === "export"){ datenExportieren(); return; }
+  if(t.dataset.daten === "import"){
+    if(t.dataset.sicher !== "1"){
+      t.dataset.sicher = "1"; t.textContent = "Ersetzt alles – nochmal tippen";
+      setTimeout(() => { if(t.isConnected){ t.dataset.sicher = ""; t.textContent = "⤒ Sicherung laden"; } }, 3500);
+      return;
+    }
+    $("fImport").click(); return;
+  }
+  if(t.dataset.sortwahl){
+    sortId = t.dataset.sortwahl;
+    blattSchliessen(); renderAlles(); ansichtSichern();
+    toast("Sortiert nach " + SORTIERUNGEN.find(s => s.id === sortId).label);
+    return;
+  }
+  if(t.hasAttribute("data-owahl")){
+    const id = blattDaten; const wahl = t.getAttribute("data-owahl");
+    blattSchliessen(); ordnerZuweisen(id, wahl); return;
+  }
+  if(t.hasAttribute("data-blattok")){ blattBestaetigen(); return; }
+  if(t.dataset.oloeschen){
+    const name = t.dataset.oloeschen;
+    if(t.dataset.sicher !== "1"){
+      t.dataset.sicher = "1"; t.textContent = "Wirklich löschen? Nochmal tippen";
+      setTimeout(() => { if(t.isConnected){ t.dataset.sicher = ""; t.textContent = "Ordner löschen (Aufträge bleiben)"; } }, 3000);
+      return;
+    }
+    blattSchliessen(); ordnerLoeschen(name); return;
+  }
+  if(t.dataset.ordnermehr){ blattOeffnen("ordner", t.dataset.ordnermehr); return; }
+  if(t.dataset.falten){
+    const n = t.dataset.falten;
+    const i = zuOrdner.indexOf(n);
+    if(i === -1) zuOrdner.push(n); else zuOrdner.splice(i,1);
+    renderListe(); ansichtSichern(); return;
+  }
+  if(t.dataset.statuszyklus){ statusZyklus(t.dataset.statuszyklus); return; }
+  if(t.dataset.zahlzyklus){ zahlungZyklus(t.dataset.zahlzyklus); return; }
+  if(t.dataset.detail){ detailZeigen(t.dataset.detail); return; }
+  if(t.id === "fabNeu"){ formOeffnen(null); return; }
+  if(t.dataset.akt === "form-zu"){ formSchliessen(); return; }
+  if(t.dataset.akt === "detail-zu"){ detailSchliessen(); return; }
+  if(t.dataset.akt === "bearbeiten"){ formOeffnen(detailId); return; }
+  if(t.id === "btnSpeichern"){ speichern(); return; }
+  if(t.id === "btnLoeschen"){ loeschen(); return; }
+  if(t.id === "fotoPlus"){ $("fFotos").click(); return; }
+  if(t.dataset.fotoweg !== undefined){ formFotos.splice(Number(t.dataset.fotoweg),1); renderFotoReihe(); return; }
+  if(t.dataset.fstatus){ formStatus = t.dataset.fstatus; renderFormStatus(); return; }
+  if(t.dataset.garnart){
+    garnArt = (garnArt === t.dataset.garnart) ? "" : t.dataset.garnart;
+    renderGarn(); if(garnArt) $("fGarn").focus(); return;
+  }
+  if(t.dataset.groesse){ formGroesse = (formGroesse === t.dataset.groesse) ? "" : t.dataset.groesse; renderGroesse(); return; }
+  if(t.dataset.schnitt){ formSchnitt = (formSchnitt === t.dataset.schnitt) ? "" : t.dataset.schnitt; renderGroesse(); return; }
+  if(t.dataset.platz){
+    platzSonst = false;
+    platzWert = (platzWert === t.dataset.platz) ? "" : t.dataset.platz;
+    renderPlatz(); return;
+  }
+  if(t.dataset.platzSonst){
+    platzSonst = true;
+    if(PLATZ_VORGABEN.indexOf(platzWert) !== -1) platzWert = "";
+    renderPlatz();
+    const inp = $("fPlatzSonst"); inp.value = platzWert; inp.focus();
+    return;
+  }
+  if(t.dataset.zahlung){ formZahlung = t.dataset.zahlung; renderZahlung(); return; }
+  if(t.dataset.dzahl){ zahlungSetzen(t.dataset.dzahl); return; }
+  if(t.dataset.status){ statusSetzen(t.dataset.status); return; }
+  if(t.dataset.gross !== undefined){
+    const box = $("detailFotos");
+    $("viewerBild").src = (box && box._fotos) ? box._fotos[Number(t.dataset.gross)] : t.src;
+    $("viewer").classList.add("offen");
+    return;
+  }
+});
+
+$("blatt").addEventListener("click", e => { if(e.target.id === "blatt") blattSchliessen(); });
+$("blatt").addEventListener("keydown", e => {
+  if(e.key === "Enter" && e.target.id === "blattEingabe"){ e.preventDefault(); blattBestaetigen(); }
+});
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && $("blatt").classList.contains("offen")) blattSchliessen();
+});
+$("viewer").addEventListener("click", () => $("viewer").classList.remove("offen"));
+$("fDeadline").addEventListener("change", renderFristHinweis);
+$("fDeadline").addEventListener("input", renderFristHinweis);
+$("fPlatzSonst").addEventListener("input", e => { platzWert = e.target.value; });
+$("fTextil").addEventListener("input", renderGroesse);
+$("fTextil").addEventListener("change", renderGroesse);
+$("fImport").addEventListener("change", e => {
+  if(e.target.files && e.target.files[0]) datenImportieren(e.target.files[0]);
+  e.target.value = "";
+});
+$("fFotos").addEventListener("change", e => {
+  if(e.target.files && e.target.files.length) fotosHinzufuegen([...e.target.files]);
+  e.target.value = "";
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./sw.js?v=4").catch(() => {});
+  });
+}
+
+
+/* ── PWA-Installation ───────────────────── */
+let pwaInstallPrompt = null;
+window.addEventListener("beforeinstallprompt", e => {
+  e.preventDefault();
+  pwaInstallPrompt = e;
+  const b = $("wzInstallieren");
+  if(b) b.hidden = false;
+});
+window.addEventListener("appinstalled", () => {
+  pwaInstallPrompt = null;
+  const b = $("wzInstallieren");
+  if(b) b.hidden = true;
+});
+async function appInstallieren(){
+  if(!pwaInstallPrompt) return;
+  const p = pwaInstallPrompt;
+  pwaInstallPrompt = null;
+  try{
+    await p.prompt();
+    await p.userChoice;
+  }catch(e){}
+  const b = $("wzInstallieren");
+  if(b) b.hidden = true;
+}
+
+/* ── Start ─────────────────────────────── */
+function migrieren(){
+  let geaendert = false;
+  for(const a of auftraege){
+    if(a.status === "arbeit"){ a.status = "offen"; geaendert = true; }
+    if(!a.zahlung){ a.zahlung = a.gezahlt ? "gezahlt" : "offen"; delete a.gezahlt; geaendert = true; }
+    if(a.garn && !a.garnArt){ a.garnArt = "einfarbig"; geaendert = true; }
+    if(a.gruppe !== undefined){ if(!a.ordner) a.ordner = a.gruppe; delete a.gruppe; geaendert = true; }
+    if(a.ordner === undefined){ a.ordner = ""; geaendert = true; }
+  }
+  return geaendert;
+}
+(async function start(){
+  datalistFuellen("textilListe", TEXTILIEN);
+  rotAlleNeu();
+
+  const ansicht = await spLies(ANSICHT_KEY);
+  if(ansicht){
+    if(ansicht.sortId && SORTIERUNGEN.some(s => s.id === ansicht.sortId)) sortId = ansicht.sortId;
+    if(Array.isArray(ansicht.zuOrdner)) zuOrdner = ansicht.zuOrdner;
+    else if(Array.isArray(ansicht.zuGruppen)) zuOrdner = ansicht.zuGruppen;
+  }
+  const gespeicherteOrdner = await spLies(ORDNER_KEY);
+  if(Array.isArray(gespeicherteOrdner)) ordner = gespeicherteOrdner;
+
+  const daten = await spLies(INDEX_KEY);
+  if(Array.isArray(daten)) auftraege = daten;
+  if(migrieren()){ try{ await spSchreib(INDEX_KEY, auftraege); }catch(e){} }
+
+  /* Ordnernamen aus bestehenden Aufträgen übernehmen */
+  let neu = false;
+  for(const a of auftraege){
+    const o = (a.ordner || "").trim();
+    if(o && ordner.indexOf(o) === -1){ ordner.push(o); neu = true; }
+  }
+  if(neu) await ordnerSichern();
+
+  renderAlles();
+})();
+</script>
+</body>
+</html>
