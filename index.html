@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Stickaufträge</title>
-<link rel="manifest" id="manifestLink" href="./manifest.webmanifest" type="application/manifest+json">
-<link rel="apple-touch-icon" id="appleIcon" sizes="180x180" href="./icons/apple-touch-icon.png">
-<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
-<link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192-v5.png">
-<link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512-v5.png">
+<link rel="manifest" id="manifestLink" href="./manifest.webmanifest?v=6" type="application/manifest+json">
+<link rel="apple-touch-icon" id="appleIcon" sizes="180x180" href="./apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="./icon-192-v6.png">
+<link rel="icon" type="image/png" sizes="512x512" href="./icon-512-v6.png">
 <link rel="shortcut icon" href="./favicon.ico">
+<meta name="app-version" content="6">
 <meta name="theme-color" content="#f3f4f1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="Stickaufträge">
@@ -247,7 +247,7 @@
   <button class="wz" id="wzSortieren">↕ Sortieren: <b id="sortLabel">Deadline</b></button>
   <button class="wz stark" id="wzNeuerOrdner">+ Neuer Ordner</button>
   <button class="wz" id="wzDaten" aria-label="Daten sichern und laden">⤓ Daten</button>
-  <button class="wz stark" id="wzInstallieren" type="button" hidden><img src="./icons/icon-192-v5.png" width="20" height="20" alt="" aria-hidden="true">App installieren</button>
+  <button class="wz stark" id="wzInstallieren" type="button" hidden><img src="./icon-192-v6.png" width="20" height="20" alt="" aria-hidden="true">App installieren</button>
 </div>
 <input type="file" id="fImport" accept="application/json,.json" hidden>
 
@@ -818,19 +818,23 @@ function renderBlatt(){
   else if(blattModus === "installieren"){
     let hinweis;
     if(!/^https?:$/.test(location.protocol)){
-      hinweis = "Zum Installieren die veröffentlichte HTTPS-Adresse in Chrome öffnen. Eine direkt geöffnete HTML-Datei oder ZIP-Vorschau reicht nicht aus.";
+      hinweis = "Zum Installieren die veröffentlichte HTTPS-Website in Chrome öffnen, nicht die heruntergeladene HTML-Datei oder die ZIP-Vorschau.";
     }else if(!window.isSecureContext){
-      hinweis = "Zum Installieren muss die App über HTTPS geöffnet werden. Bitte die sichere Adresse dieser App in Chrome aufrufen.";
+      hinweis = "Zum Installieren muss die App über HTTPS geöffnet werden.";
     }else if(!navigator.onLine){
-      hinweis = "Zum Installieren bitte zuerst eine Internetverbindung herstellen und die Seite erneut öffnen.";
+      hinweis = "Zum Installieren bitte zuerst eine Internetverbindung herstellen.";
+    }else if(pwaIOS){
+      hinweis = "Im Browser auf Teilen tippen und dann Zum Home-Bildschirm wählen.";
     }else{
-      hinweis = "In Chrome oben rechts auf ⋮ tippen und „App installieren“ oder „Zum Startbildschirm hinzufügen“ wählen. Falls zwei Möglichkeiten erscheinen, „Installieren“ auswählen. Der Dialog sollte das Stickrahmen-Symbol zeigen.";
+      hinweis = "In Chrome oben rechts auf ⋮ tippen und App installieren oder Zum Startbildschirm hinzufügen → Installieren wählen. Falls die App bereits installiert ist, über das vorhandene Symbol öffnen.";
     }
     html = '<h3>App mit Symbol installieren</h3>' +
-      '<p><img src="./icons/icon-192-v5.png" width="64" height="64" alt="App-Symbol: Stickrahmen mit Haken"></p>' +
+      '<p><img src="./icon-192-v6.png" width="64" height="64" alt="App-Symbol: Stickrahmen mit Haken"></p>' +
       '<p class="klein">' + esc(hinweis) + '</p>' +
-      '<p class="klein">Fehlt das Symbol im Installationsdialog, müssen auch manifest.webmanifest und der komplette Ordner icons auf dem Webserver liegen. Danach die Seite neu laden.</p>' +
-      '<button class="b-option" id="pwaHilfeSchliessen">Verstanden</button>';
+      '<p class="klein">GitHub: Alle entpackten Dateien gehören direkt neben index.html. Es wird kein icons-Ordner benötigt. Öffne die unter Settings → Pages veröffentlichte Website, nicht die GitHub-Dateiansicht.</p>' +
+      '<div id="pwaPruefergebnis" class="klein" role="status" aria-live="polite" style="overflow-wrap:anywhere">' + pwaPruefungHTML() + '</div>' +
+      '<button class="b-option" id="pwaPruefen">Installation prüfen</button>' +
+      '<button class="b-option" id="pwaHilfeSchliessen">Schließen</button>';
   }
   else if(blattModus === "ordner"){
     html = '<h3>' + esc(blattDaten) + '</h3><p class="klein">Ordner bearbeiten</p>' +
@@ -1275,6 +1279,7 @@ document.addEventListener("click", e => {
   if(t.id === "wzNeuerOrdner"){ blattOeffnen("neu"); return; }
   if(t.id === "wzDaten"){ blattOeffnen("daten"); return; }
   if(t.id === "wzInstallieren"){ appInstallieren(); return; }
+  if(t.id === "pwaPruefen"){ pwaInstallationPruefen(); return; }
   if(t.id === "pwaHilfeSchliessen"){ blattSchliessen(); return; }
   if(t.dataset.daten === "export"){ datenExportieren(); return; }
   if(t.dataset.daten === "import"){
@@ -1376,21 +1381,15 @@ $("fFotos").addEventListener("change", e => {
 });
 
 /* ── PWA-Installation und Updates ───────── */
-if("serviceWorker" in navigator && window.isSecureContext && /^https?:$/.test(location.protocol)){
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js?v=5", {
-      scope: "./",
-      updateViaCache: "none"
-    }).catch(fehler => {
-      console.warn("Offline-Funktion konnte nicht aktualisiert werden:", fehler);
-    });
-  });
-}
-
 let pwaInstallPrompt = null;
 let pwaInstallLaeuft = false;
 let pwaInstallationBestaetigt = false;
+let pwaPrueft = false;
+let pwaPruefergebnis = [];
+let pwaSWFehler = "";
 const pwaAndroid = /Android/i.test(navigator.userAgent);
+const pwaIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 const pwaDarstellung = window.matchMedia("(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)");
 
 function pwaIstApp(){
@@ -1399,8 +1398,125 @@ function pwaIstApp(){
 function pwaInstallKnopfAktualisieren(){
   const b = $("wzInstallieren");
   if(!b) return;
-  b.hidden = pwaIstApp() || (!pwaAndroid && !pwaInstallPrompt);
+  b.hidden = pwaIstApp() || (!pwaAndroid && !pwaIOS && !pwaInstallPrompt);
   b.disabled = pwaInstallLaeuft;
+}
+function pwaPruefungHTML(){
+  if(pwaPrueft) return "Installationsdateien werden geprüft …";
+  if(!pwaPruefergebnis.length) return "Version 6 · Ohne Unterordner";
+  return pwaPruefergebnis.map(e => '<p>' + esc(e) + '</p>').join("");
+}
+function pwaPruefungAnzeigen(){
+  const ergebnis = $("pwaPruefergebnis");
+  if(ergebnis) ergebnis.innerHTML = pwaPruefungHTML();
+  const knopf = $("pwaPruefen");
+  if(knopf) knopf.disabled = pwaPrueft;
+}
+async function pwaDateiLesen(pfad, typ, groesse){
+  const url = new URL(pfad, document.baseURI);
+  if(url.origin !== location.origin) throw new Error("Datei liegt nicht auf dieser Website: " + pfad);
+  url.searchParams.set("pwa-check", "v6");
+  const steuerung = new AbortController();
+  const timer = setTimeout(() => steuerung.abort(), 10000);
+  const name = decodeURIComponent(url.pathname.split("/").pop());
+  try{
+    const antwort = await fetch(url.href, { cache:"no-store", signal:steuerung.signal });
+    if(!antwort.ok) throw new Error(name + ": HTTP " + antwort.status + ". Datei fehlt oder ist noch nicht veröffentlicht.");
+    const inhaltstyp = (antwort.headers.get("Content-Type") || "").toLowerCase();
+    if(inhaltstyp.includes("text/html")) throw new Error(name + ": Statt der Datei wird eine HTML-Seite geliefert.");
+    if(typ === "json"){
+      try{ return await antwort.json(); }
+      catch(fehler){ throw new Error(name + ": Kein gültiges JSON-Manifest."); }
+    }
+    if(typ === "bild"){
+      if(!inhaltstyp.includes("image/png")) throw new Error(name + ": Wird nicht als PNG-Bild ausgeliefert.");
+      const blob = await antwort.blob();
+      if(typeof createImageBitmap === "function"){
+        let bild;
+        try{ bild = await createImageBitmap(blob); }
+        catch(fehler){ throw new Error(name + ": Bild ist beschädigt oder kein PNG."); }
+        const korrekt = bild.width === groesse && bild.height === groesse;
+        bild.close();
+        if(!korrekt) throw new Error(name + ": Falsche Bildgröße, erwartet " + groesse + " × " + groesse + " Pixel.");
+      }
+      return true;
+    }
+    if(!/(javascript|ecmascript)/.test(inhaltstyp)) throw new Error(name + ": Wird nicht als JavaScript ausgeliefert.");
+    await antwort.text();
+    return true;
+  }catch(fehler){
+    if(fehler.name === "AbortError") throw new Error(name + ": Server antwortet nicht rechtzeitig.");
+    throw fehler;
+  }finally{
+    clearTimeout(timer);
+  }
+}
+async function pwaInstallationPruefen(){
+  if(pwaPrueft) return;
+  pwaPrueft = true;
+  pwaPruefergebnis = [];
+  pwaPruefungAnzeigen();
+  try{
+    if(!/^https?:$/.test(location.protocol) || !window.isSecureContext){
+      throw new Error("Die App muss über ihre veröffentlichte HTTPS-Website geöffnet werden.");
+    }
+    if(!navigator.onLine) throw new Error("Keine Internetverbindung. Die Installationsdateien können gerade nicht geprüft werden.");
+    const manifest = await pwaDateiLesen("./manifest.webmanifest", "json");
+    if(!manifest || !manifest.name || manifest.display !== "standalone" || !manifest.start_url){
+      throw new Error("manifest.webmanifest: Die App-Angaben fehlen oder stammen nicht aus diesem Paket.");
+    }
+    const bilder = [
+      ["./icon-192-v6.png", 192, "any"],
+      ["./icon-512-v6.png", 512, "any"],
+      ["./icon-maskable-192-v6.png", 192, "maskable"],
+      ["./icon-maskable-512-v6.png", 512, "maskable"]
+    ];
+    if(!Array.isArray(manifest.icons) || !bilder.every(([src, n, zweck]) => manifest.icons.some(i =>
+      i.src === src && i.sizes === n + "x" + n && (i.purpose || "any").split(/\s+/).includes(zweck)))){
+      throw new Error("manifest.webmanifest ist nicht die passende Version 6. Auch diese Datei ersetzen, nicht nur index.html.");
+    }
+    const pruefungen = await Promise.all(bilder.map(async ([src, n]) => {
+      try{ await pwaDateiLesen(src, "bild", n); return null; }
+      catch(fehler){ return fehler.message || "Ein Symbol konnte nicht geladen werden."; }
+    }));
+    const fehler = pruefungen.filter(Boolean);
+    if(fehler.length){
+      pwaPruefergebnis = fehler.concat("Die genannten PNG-Dateien unverändert direkt neben index.html hochladen. Danach erneut prüfen.");
+      return;
+    }
+    pwaPruefergebnis.push("✓ Manifest und alle vier Android-Symbole sind erreichbar. Version 6 ist veröffentlicht.");
+    try{
+      await pwaDateiLesen("./sw.js", "script");
+      if(pwaSWFehler) pwaPruefergebnis.push("Offline-Funktion: " + pwaSWFehler);
+      else if("serviceWorker" in navigator){
+        const registrierung = await navigator.serviceWorker.getRegistration(new URL("./", document.baseURI).href);
+        pwaPruefergebnis.push(registrierung && registrierung.active
+          ? "✓ Offline-Service-Worker ist aktiv."
+          : "Offline-Service-Worker ist noch nicht aktiv. Seite nach dem Hochladen erneut öffnen.");
+      }
+    }catch(fehler){ pwaPruefergebnis.push("Offline-Funktion: " + fehler.message); }
+    pwaPruefergebnis.push(pwaInstallPrompt
+      ? "Der Browser bietet die Installation an. Diesen Hinweis schließen und App installieren antippen."
+      : "Die Dateien sind vorhanden. Falls kein Dialog erscheint, das Chrome-Menü verwenden. Diese Prüfung bestätigt keine abgeschlossene Android-Installation.");
+  }catch(fehler){
+    pwaPruefergebnis = [fehler.message || "Die Installationsdateien konnten nicht geprüft werden."];
+  }finally{
+    pwaPrueft = false;
+    pwaPruefungAnzeigen();
+  }
+}
+
+if("serviceWorker" in navigator && window.isSecureContext && /^https?:$/.test(location.protocol)){
+  const pwaOfflineStarten = () => {
+    navigator.serviceWorker.register("./sw.js?v=6", {
+      scope: "./", updateViaCache: "none"
+    }).catch(fehler => {
+      pwaSWFehler = fehler.message || "Service Worker konnte nicht registriert werden.";
+      console.warn("Offline-Funktion konnte nicht aktualisiert werden:", fehler);
+    });
+  };
+  if(document.readyState === "complete") pwaOfflineStarten();
+  else window.addEventListener("load", pwaOfflineStarten, { once:true });
 }
 window.addEventListener("beforeinstallprompt", e => {
   e.preventDefault();
@@ -1424,6 +1540,7 @@ async function appInstallieren(){
   if(pwaInstallLaeuft || pwaIstApp()) return;
   if(!pwaInstallPrompt){
     blattOeffnen("installieren");
+    pwaInstallationPruefen();
     return;
   }
   const prompt = pwaInstallPrompt;
@@ -1433,10 +1550,13 @@ async function appInstallieren(){
   try{
     await prompt.prompt();
     const wahl = await prompt.userChoice;
-    if(wahl.outcome === "accepted") pwaInstallationBestaetigt = true;
+    if(wahl.outcome === "accepted" && !pwaInstallationBestaetigt){
+      toast("Installation im Browser angefordert");
+    }
   }catch(fehler){
     console.warn("Installation konnte nicht gestartet werden:", fehler);
     blattOeffnen("installieren");
+    pwaInstallationPruefen();
   }finally{
     pwaInstallLaeuft = false;
     pwaInstallKnopfAktualisieren();

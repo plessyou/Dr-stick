@@ -1,45 +1,60 @@
-# Stickaufträge
+# Stickaufträge: GitHub-Fix, Version 6
 
-Auftragsbuch für Stickereien. Die Speicherlogik für Aufträge, Ordner und Fotos wurde nicht verändert.
+**Diese Version braucht keinen `icons`-Ordner.** Alle Dateien liegen direkt nebeneinander. Das vorhandene App-Symbol bleibt unverändert.
 
-## Android-Version v5 bereitstellen
+## Bestehende App aktualisieren
 
-1. Zur Sicherheit in der bisherigen App **⤓ Daten → Sicherung speichern** wählen.
-2. Diese ZIP entpacken und **den gesamten Inhalt** an dieselbe Stelle wie die bisherige App hochladen. Nicht nur `index.html` ersetzen. Der vollständige Ordner `icons` muss mit hochgeladen werden.
-3. Die veröffentlichte **HTTPS-Adresse** in Chrome auf Android öffnen und neu laden. Eine lokale HTML-Datei, eine ZIP-Vorschau oder die Dateiansicht eines Repositorys ist keine installierbare Website.
-4. **App installieren** antippen. Falls der Browser keinen direkten Installationsdialog anbietet, zeigt der Knopf eine Anleitung für das Browsermenü. Dort **App installieren** oder **Zum Startbildschirm hinzufügen → Installieren** wählen. Das Stickrahmen-Symbol sollte bereits im Dialog erscheinen.
+Vorher in der bisherigen App unter **Daten → Sicherung speichern** eine Sicherung anlegen. Keine Browserdaten löschen und kein neues Repository anlegen. Die bisherige Website-Adresse beibehalten.
 
-Die Website-Adresse und der bisherige Installationspfad sollen gleich bleiben. Die ZIP-Datei selbst ist keine APK.
+1. Die heruntergeladene ZIP **entpacken**. Die ZIP selbst wird nicht als App ausgeführt und beim normalen GitHub-Datei-Upload nicht automatisch entpackt.
+2. Im bestehenden GitHub-Repository den Ordner öffnen, in dem die bisherige `index.html` liegt. **Add file → Upload files** auswählen.
+3. Alle entpackten Dateien gemeinsam auswählen und hochladen. `index.html`, `manifest.webmanifest` und `sw.js` ersetzen die bisherigen Dateien. Die PNG-Dateien kommen **direkt daneben**, nicht in einen Unterordner. Die Änderungen im bisherigen Veröffentlichungsbranch speichern beziehungsweise dorthin übernehmen.
+4. Unter **Settings → Pages** muss der Branch und Quellordner mit diesen Dateien ausgewählt sein. Bei einer bereits veröffentlichten App die funktionierende Einstellung beibehalten. Bei erstmaliger Einrichtung: **Deploy from a branch**, den Branch mit den Dateien und den passenden Ordner auswählen. Liegt `index.html` im Hauptverzeichnis, ist dies **/(root)**. Liegt sie im bisherigen `docs`-Ordner, ist es **/docs**.
+5. Warten, bis die Pages-Veröffentlichung abgeschlossen ist. Dann die dort angezeigte **veröffentlichte Website** auf Android in Chrome öffnen. Nicht die GitHub-Dateiansicht, die ZIP oder die HTML-Datei aus dem Downloadordner öffnen.
+6. Die Seite neu laden und **App installieren** antippen. Ohne direkten Installationsdialog zeigt die App die Installationshilfe und prüft die benötigten Dateien. Im Chrome-Menü **⋮ → App installieren** beziehungsweise **Zum Startbildschirm hinzufügen → Installieren** verwenden, sofern angeboten.
 
-## Was angepasst wurde
+## Diese Dateien müssen nebeneinander liegen
 
-- Die vorhandenen normalen und maskierbaren Symbole sind unter neuen Dateinamen mit `-v5.png` eingebunden. Das Motiv bleibt unverändert. Beide Varianten liegen in 192 × 192 und 512 × 512 Pixeln vor. Die maskierbaren Symbole haben einen deckenden Hintergrund und ausreichend Platz für Androids unterschiedliche Symbolformen.
-- Das Manifest bleibt unter `manifest.webmanifest` erreichbar. App-ID, Name, Startadresse und Gültigkeitsbereich sind unverändert. Zusätzliche HTML-Symbolverweise verwenden ebenfalls die neuen Dateien.
-- **App installieren** enthält jetzt das App-Symbol und bleibt im Android-Browser auch ohne automatisches Installationsangebot erreichbar. Die Werkzeugleiste bricht auf schmalen Bildschirmen um, statt den Knopf rechts aus dem sichtbaren Bereich zu schieben. Innerhalb der bereits gestarteten App ist der Knopf ausgeblendet.
-- Der Service Worker verwendet Version 5, lädt das vollständige Dateipaket neu und prüft HTML und Manifest online auf Aktualisierungen. Seine neuen Caches sind nach Installationspfad getrennt. Die Bereinigung betrifft nur seine eigenen versionierten Caches, nicht Aufträge oder Caches anderer Apps.
+```text
+index.html
+manifest.webmanifest
+sw.js
+icon-192-v6.png
+icon-512-v6.png
+icon-maskable-192-v6.png
+icon-maskable-512-v6.png
+apple-touch-icon.png
+favicon.ico
+```
 
-## Eine vorhandene Installation zeigt noch das alte oder kein Symbol
+`README.md` und `PRUEFUNG.md` sind zusätzliche Anleitungen. Sie dürfen ebenfalls hochgeladen werden, werden aber nicht für die App benötigt. Bereits vorhandene alte Symbole und ein alter `icons`-Ordner dürfen liegen bleiben. Version 6 verwendet sie nicht.
 
-Eine einfache Startbildschirm-Verknüpfung kann entfernt und über die oben beschriebene Installation neu angelegt werden. Dabei nur die Verknüpfung entfernen, nicht die Browser- oder Website-Daten löschen.
+## Installation prüfen
 
-Bei einer bereits installierten Web-App aktualisiert Chrome das Android-Symbol nicht unbedingt sofort. Die App nach dem Hochladen einmal online öffnen und anschließend schließen. WLAN und ein angeschlossenes Ladegerät können für die Aktualisierung erforderlich sein. Die beiliegenden Dateien können das bereits auf einem Gerät gespeicherte Symbol nicht sofort ersetzen.
+Wenn kein Installationsdialog verfügbar ist, öffnet **App installieren** die Hilfe mit einer Prüfung. **Installation prüfen** wiederholt sie. Geprüft werden das aktuelle Manifest und alle vier Android-Symbole. Erreichbarkeit, PNG-Dateityp und, soweit die Browserfunktion verfügbar ist, Bildabmessungen werden geprüft. `sw.js` wird zusätzlich für die Offline-Funktion geprüft.
 
-Vor einer eventuellen Deinstallation oder Neuinstallation immer eine Sicherung speichern. Die App selbst verändert beim Datei-Update keine gespeicherten Aufträge.
+**HTTP 404 mit einem Dateinamen:** Genau diese Datei wurde nicht mit hochgeladen, liegt im falschen Ordner oder ist noch nicht veröffentlicht. Direkt neben `index.html` hochladen.
 
-## Dateien
+**Manifest nicht Version 6:** Auch `manifest.webmanifest` ersetzen. Nur `index.html` zu ersetzen reicht nicht.
 
-`index.html`, `manifest.webmanifest`, `sw.js`, `favicon.ico` und der komplette Ordner `icons` gehören zusammen. Die ursprünglichen Symboldateien ohne `-v5` bleiben zur Kompatibilität mit älteren Verweisen enthalten. `README.md` und `PRUEFUNG.md` sind Dokumentation und nicht für die Ausführung erforderlich.
+**HTML statt Datei:** Die Adresse liefert eine Fehlerseite oder eine andere Seite statt der benötigten Datei. Veröffentlichungsordner und Dateinamen prüfen.
 
-Der Webserver muss echte PNG-Dateien unter den Symboladressen und JSON unter `manifest.webmanifest` liefern, keine HTML-Fehlerseite oder Anmeldung. Für das Manifest ist `application/manifest+json`, für die Symbole `image/png` als Content-Type vorgesehen.
+**Alle vier Android-Symbole erreichbar:** Die geprüften Dateien sind online vorhanden. Das bestätigt noch keine erfolgreiche Installation auf Android. Installation weiterhin im normalen Chrome-Browser über dessen Menü versuchen. Eine bestehende Installation kann ebenfalls erklären, weshalb kein erneuter Dialog erscheint.
 
-## Weitere Updates
+**Die alte Version erscheint weiter:** Prüfen, ob die Änderungen in dem unter Pages eingestellten Branch und Ordner stehen und die Veröffentlichung abgeschlossen ist. Die veröffentlichte Website neu laden. Nicht den Website-Speicher löschen, dort liegen die Aufträge und Fotos.
 
-Bei Änderungen an den App-Dateien `APP_VERSION` in `sw.js` und `sw.js?v=5` in `index.html` gemeinsam erhöhen. Bei einem neuen Symbol neue versionierte PNG-Dateien anlegen und deren Verweise in Manifest, HTML und `APP_SHELL` aktualisieren. Den Namen und Pfad der Manifestdatei beibehalten.
+## Änderungen
+
+Alle Bildpfade zeigen direkt neben `index.html`. Die bisherigen normalen und maskierbaren Symbole liegen in 192 und 512 Pixeln unter neuen Namen vor. Manifest-ID, Startadresse und App-Scope bleiben unverändert und funktionieren mit relativen Pfaden auch in einem Projekt-Unterverzeichnis.
+
+Der Service Worker verwendet den Dateicache `v6`. Fehlende zusätzliche Dateien lassen nicht mehr das gesamte Offline-Update scheitern. Die Installationsprüfung zeigt fehlende Android-Symbole trotzdem ausdrücklich an. Der Installationsknopf wird erst nach dem Browserereignis `appinstalled` oder im eigenständigen App-Modus als bereits installiert behandelt, nicht allein nach einer Zusage im Dialog.
+
+Die Speicherfunktionen für Aufträge, Ordner und Fotos wurden nicht geändert. Die Cache-Bereinigung betrifft nur alte versionierte App-Dateicaches desselben Installationspfades. Sie löscht keine Auftragsdaten.
 
 ## Technische Quellen
 
-Installationsvoraussetzungen: `https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable`
+GitHub-Datei-Upload: `https://docs.github.com/en/repositories/working-with-files/managing-files/adding-a-file-to-a-repository`
 
-Android-Symbolformen und Sicherheitsbereich: `https://web.dev/articles/maskable-icon`
+GitHub-Pages-Veröffentlichung: `https://docs.github.com/en/pages/getting-started-with-github-pages/configuring-a-publishing-source-for-your-github-pages-site`
 
-Aktualisierung bestehender Installationen: `https://web.dev/articles/manifest-updates`
+Installierbare Web-Apps: `https://developer.mozilla.org/en-US/docs/Web/Progressive_web_apps/Guides/Making_PWAs_installable`

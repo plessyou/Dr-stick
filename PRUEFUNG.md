@@ -1,17 +1,15 @@
-# Prüfung der Android-Anpassung
+# Prüfung von Version 6
 
 ## Bestanden
 
-**Dateien:** Manifest-JSON und JavaScript-Syntax geprüft. Alle statischen Symbolverweise zeigen auf vorhandene Dateien. Größen und PNG-Format stimmen mit dem Manifest überein. Normale und maskierbare Varianten sind getrennt eingetragen. Das kontrastreiche Motiv der maskierbaren Dateien liegt innerhalb des kreisförmigen Sicherheitsbereichs. Die Bilddateien sind unveränderte Kopien des vorhandenen Motivs unter neuen Namen.
+Alle statischen HTML-Verweise und Manifest-Symbole zeigen auf vorhandene Dateien. PNG-Formate und die im Manifest angegebenen Bildgrößen sind geprüft. Die normalen und maskierbaren Bilder sind unveränderte Kopien der vorherigen Version. JavaScript-Syntax von App und Service Worker ist geprüft. Im ZIP gibt es keine Unterordner. Die Speicherfunktionen der bisherigen App sind unverändert.
 
-**Pfade:** Relative Manifest-, Start- und Symboladressen für eine Installation im Website-Hauptverzeichnis und in einem Unterverzeichnis geprüft. App-ID, Name, Startadresse und Gültigkeitsbereich sind gegenüber dem Original unverändert.
+13 isolierte JavaScript-Testfälle wurden mit Node.js ausgeführt. Die Service-Worker-Tests simulieren Browserereignisse, Netzwerkantworten und Cache-Speicher für Hauptverzeichnis und Projekt-Unterverzeichnis. Geprüft wurden Vorladen, Offline-Rückfall, Serverfehler, Bereinigung nur eigener Caches, fehlende Zusatzdateien, fehlende Startseite und das Umgehen von Offline-Kopien bei der Upload-Diagnose. Die Installationstests prüfen erfolgreiche Dateiprüfung, fehlendes Symbol, falsche Serverantwort, ungültiges oder altes Manifest, fehlenden Service Worker, fehlendes HTTPS, Offline-Status und Installationsereignisse. Eine Zusage im Dialog gilt nicht vorzeitig als bestätigte Installation.
 
-**Oberfläche:** Mit Chromium 144, Android-Browserkennung und Bildschirmbreiten von 320, 393 und 600 CSS-Pixeln geprüft. Der Installationsknopf samt geladenem Symbol ist vollständig sichtbar. In der Ausgangsversion lag der eingeblendete Knopf bei 393 Pixeln überwiegend außerhalb des sichtbaren Bereichs. Die angepasste Seite hat in den geprüften Breiten keinen horizontalen Seitenüberlauf.
+Die Oberfläche wurde in Chromium 144 bei 320, 393 und 600 CSS-Pixeln im Speicher gerendert, mit Android-Browserkennung und eingebetteten Testkopien der Bilder. Der Installationsknopf und das Symbol sind sichtbar; die Seite hat keinen horizontalen Überlauf. Hilfedialog und Schließen funktionieren. Die Diagnose meldet eine nicht veröffentlichte Seite korrekt. Testeinträge für Aufträge, Ordner und Fotos im simulierten Speicher bleiben unverändert.
 
-**Installationslogik:** Hilfedialog ohne Installationsangebot, abgelehnter Dialog, angenommener Dialog, Fehler beim Öffnen des Dialogs und das Ereignis `appinstalled` mit simulierten Browserereignissen geprüft. Der Knopf ist im simulierten eigenständigen App-Modus ausgeblendet. Gespeicherte Testaufträge, Ordner, Fotodaten und ein fremder Speichereintrag blieben bei diesen Abläufen unverändert.
+## Nicht bestätigt
 
-**Service Worker:** In einer isolierten JavaScript-Testumgebung geprüft: vollständiges Vorladen mit Umgehung alter HTTP-Cache-Kopien, Bereinigung nur eigener Caches, frisches Manifest, Offline-Rückfall für HTML und Symbole, Rückfall bei Serverfehlern, fehlende Dateien beim Update, fehlender Speicherplatz und Behandlung fremder Anfragen. Die Tests liefen sowohl für den Website-Hauptpfad als auch für ein Unterverzeichnis.
+Ein vollständiger Browser-Test über einen lokalen HTTP-Server wurde durch die Testumgebung mit `ERR_BLOCKED_BY_ADMINISTRATOR` blockiert. Daher konnten Manifest-Erkennung und Service-Worker-Aktivierung nicht in einem realen Netzwerkablauf geprüft werden. Die genannten Logiktests verwenden kontrollierte Testantworten und ersetzen diesen Test nicht.
 
-## Grenzen der Prüfung
-
-Die Oberflächentests verwendeten ein isoliertes Browserdokument mit eingebetteten Testbildern und simuliertem Speicher. Netzwerk, Cache und Installationsdialoge wurden für die Logiktests simuliert. Eine vollständige Installation über eine veröffentlichte HTTPS-Adresse, die Android-WebAPK-Erstellung und die Darstellung im Startbildschirm eines echten Android-Geräts wurden nicht getestet. Die konkrete Ursache des fehlenden Symbols auf dem bisherigen Gerät ist ohne Zugriff auf dessen Installation und die veröffentlichte Website nicht abschließend feststellbar.
+Die konkrete veröffentlichte GitHub-Pages-Adresse wurde nicht geprüft. Eine echte Installation auf Android, die WebAPK-Erstellung und das Symbol im Android-Launcher wurden nicht getestet. Die bereitgestellte ZIP korrigiert die Dateistruktur und Fehlerbehandlung, stellt aber keinen Nachweis einer erfolgreichen Installation auf dem Gerät dar.
