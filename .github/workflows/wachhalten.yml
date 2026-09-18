@@ -11,13 +11,8 @@ jobs:
     steps:
       - name: Kurz anklopfen
         run: |
-          url="${{ secrets.SUPABASE_URL }}"
-          key="${{ secrets.SUPABASE_KEY }}"
-          echo "URL-Laenge: ${#url} Zeichen"
-          echo "Key-Laenge: ${#key} Zeichen"
-          if [ -z "$url" ]; then echo "FEHLER: SUPABASE_URL ist leer"; exit 1; fi
-          if [ -z "$key" ]; then echo "FEHLER: SUPABASE_KEY ist leer"; exit 1; fi
-          url="${url%/}"
+          url="https://aavoezleqtmeapbyizli.supabase.co"
+          key="sb_publishable_Nxl6tpJShFsqZ3XKx4xGhQ_UjUp71e2"
           antwort=$(curl -sS -o /dev/null -w "%{http_code}" \
             "$url/rest/v1/lebenszeichen?select=id" -H "apikey: $key")
           echo "Antwort: $antwort"
