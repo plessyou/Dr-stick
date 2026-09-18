@@ -1,0 +1,20 @@
+```yaml
+name: Supabase wach halten
+
+on:
+  schedule:
+    - cron: "0 6 */3 * *"   # alle drei Tage um 6 Uhr
+  workflow_dispatch:         # Knopf zum manuellen Auslösen
+
+jobs:
+  anklopfen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kurz anklopfen
+        run: |
+          antwort=$(curl -sS -o /dev/null -w "%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/lebenszeichen?select=id" \
+            -H "apikey: ${{ secrets.SUPABASE_KEY }}")
+          echo "Antwort: $antwort"
+          test "$antwort" = "200"
+```
