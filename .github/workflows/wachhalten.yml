@@ -1,10 +1,9 @@
-```yaml
 name: Supabase wach halten
 
 on:
   schedule:
-    - cron: "0 6 */3 * *"   # alle drei Tage um 6 Uhr
-  workflow_dispatch:         # Knopf zum manuellen Auslösen
+    - cron: "0 6 */3 * *"
+  workflow_dispatch:
 
 jobs:
   anklopfen:
@@ -17,4 +16,3 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_KEY }}")
           echo "Antwort: $antwort"
           test "$antwort" = "200"
-```
