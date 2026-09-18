@@ -1,5 +1,5 @@
 /* Nur App-Dateien werden gecacht. Aufträge, Ordner und Fotos bleiben unberührt. */
-const APP_VERSION = "v6";
+const APP_VERSION = "v7-uebergabe-abschluss";
 const CACHE_PREFIX = "stickauftraege:" + self.registration.scope + ":";
 const CACHE_NAME = CACHE_PREFIX + APP_VERSION;
 const CORE = ["./index.html", "./manifest.webmanifest"];
@@ -15,7 +15,7 @@ const MANIFEST_URL = new URL("./manifest.webmanifest", SCOPE_URL).pathname;
 
 async function dateiVorhalten(cache, pfad){
   const url = new URL(pfad, SCOPE_URL);
-  const antwort = await fetch(url.href, { cache:"reload" });
+  const antwort = await fetch(url.href, { cache:"no-store" });
   if(!antwort.ok) throw new Error(pfad + ": HTTP " + antwort.status);
   const typ = (antwort.headers.get("Content-Type") || "").toLowerCase();
   if(pfad.endsWith(".png") && !typ.includes("image/png")) throw new Error(pfad + ": Kein PNG");
@@ -65,7 +65,11 @@ self.addEventListener("fetch", event => {
         if(!falsch){
           try{
             const cache = await caches.open(CACHE_NAME);
-            await cache.put(anfrage, antwort.clone());
+            /* Jede neue Startseite ersetzt auch die Offline-Startseite ohne Query-Parameter. */
+            const cacheZiel = anfrage.mode === "navigate"
+              ? new URL("./index.html", SCOPE_URL).href
+              : url.origin + url.pathname;
+            await cache.put(cacheZiel, antwort.clone());
           }catch(fehler){ console.warn("Offline-Speichern fehlgeschlagen:", fehler); }
         }
       }

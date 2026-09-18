@@ -1,0 +1,81 @@
+STICKAUFTRÄGE: VERSION 7
+Übergabe & Abschluss
+
+AKTUALISIEREN
+
+1. In der bisherigen App unter Daten > Sicherung speichern eine Sicherung anlegen.
+2. Diese ZIP entpacken.
+3. Im bestehenden GitHub-Projekt genau die bisherigen Dateien index.html und
+   sw.js durch die beiden Dateien aus dieser ZIP ersetzen. Sie gehören an
+   dieselbe Stelle wie bisher, NICHT in einen neuen Unterordner. Die ZIP selbst
+   nicht als App-Datei hochladen. manifest.webmanifest und sämtliche Bilder
+   unverändert behalten.
+4. Nach der Veröffentlichung die bisherige App-Website mit Internetverbindung
+   neu öffnen. Bei einer noch alten Anzeige an die Website-Adresse einmal
+   ?update=7 anhängen. Falls die Adresse bereits ein ? enthält, &update=7
+   verwenden. Anschließend die installierte App vollständig schließen und
+   wieder öffnen.
+5. Unter den Werkzeugen muss stehen:
+   Version 7 · Übergabe & Abschluss
+
+Wenn diese Zeile fehlt, ist noch nicht diese Datei geöffnet. In der neuen
+Version gibt es außerdem die Schaltfläche „Aktualisieren“. Sie lädt App-Dateien
+neu, ohne Aufträge zu löschen. Bitte weder App-Daten noch Website-Speicher
+löschen. Eine Neuinstallation ist für diese Änderung nicht vorgesehen.
+
+DIE REGELN
+
+Gespeicherter Status | Bezahlung       | Angezeigter Bereich
+Offen               | Nicht gezahlt   | Offen
+Offen               | Gezahlt         | Offen
+Offen               | Geschenk        | Offen
+Fertig              | Nicht gezahlt   | Fertig
+Fertig              | Gezahlt         | Fertig
+Fertig              | Geschenk        | Fertig
+Übergeben           | Nicht gezahlt   | Übergeben, roter pulsierender Zähler
+Übergeben           | Gezahlt         | Erledigt
+Übergeben           | Geschenk        | Erledigt
+
+Erledigt setzt immer eine tatsächliche Übergabe voraus.
+Die Bezahlung und der Arbeits-/Übergabestatus bleiben unabhängige Angaben.
+
+Der Reiter „Übergeben“ zeigt und zählt ausschließlich übergebene Aufträge,
+bei denen die Zahlung noch offen ist. Bei null solchen Aufträgen bleibt der
+Reiter sichtbar, aber ohne Zahl und ohne Pulsieren. Bei eingeschalteter
+Systemeinstellung für reduzierte Bewegung bleibt die rote Zahl statisch.
+
+„Erledigt“ ist ein eigener Reiter. Unter „Alle“ gibt es weiterhin den
+Archivordner „✓ Erledigt“. Abgeschlossene Aufträge erscheinen nicht in den
+aktiven Projektordnern. Die ursprüngliche Projektzuordnung bleibt gespeichert
+und ist in den Auftragsdetails einsehbar, wird aber auf erledigten Karten nicht
+als weiterer Ordnerknopf angezeigt.
+
+Wird eine Zahlung wieder geöffnet oder die Übergabe zurückgenommen, wird der
+Auftrag unmittelbar neu eingeordnet. Aufträge, Fotos und Projektordner werden
+bei diesem Update nicht gelöscht. Es gibt keine automatische Umwandlung von
+„Fertig“ in „Übergeben“.
+
+WICHTIG BEI EINER FRÜHEREN VERSION OHNE „ÜBERGEBEN“
+
+Falls eine frühere Version gespeicherte Übergaben in „Fertig“ umgewandelt hat,
+lässt sich die tatsächliche Übergabe daraus nicht sicher erkennen. Solche
+bereits übergebenen Aufträge einmal ausdrücklich auf „Übergeben“ setzen.
+Diese Version erfindet keine fehlenden Übergaben anhand einer Bezahlung.
+
+PRÜFUNG
+
+Die neun Kombinationen und 13 Testgruppen wurden mit Testaufträgen in einer
+isolierten Chromium-Dokumentansicht geprüft. Dazu gehören sichtbare Karten,
+Zähler, Geschenke, Vorauszahlung, Übergabe und Rücknahme, Neuanlage/Bearbeitung,
+Sicherungsinhalt und Import, erneutes Einlesen gespeicherter Daten sowie
+simulierte Speicherfehler. Der Web-Speicher wurde dabei im Test nachgebildet.
+Darstellung bei 360, 412 und 820 Pixel Breite geprüft.
+
+Der Service-Worker-Code wurde separat mit simulierten Netzwerk- und
+Cache-Ereignissen geprüft. Eine echte Android-Installation und ein Live-Update
+auf deiner GitHub-Pages-Website konnten hier nicht geprüft werden.
+
+Technische Referenzen zur Aktualisierung:
+https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/update
+https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register
+https://developer.mozilla.org/en-US/docs/Web/API/Cache/match

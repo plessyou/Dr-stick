@@ -9,7 +9,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="./icon-192-v6.png">
 <link rel="icon" type="image/png" sizes="512x512" href="./icon-512-v6.png">
 <link rel="shortcut icon" href="./favicon.ico">
-<meta name="app-version" content="6">
+<meta name="app-version" content="7">
 <meta name="theme-color" content="#f3f4f1">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="application-name" content="Stickaufträge">
@@ -43,7 +43,7 @@
   .kopf .unterzeile{margin:2px 0 0; color:var(--tinte-2); font-size:13px}
   .laufstich{height:0; border-top:2px dashed var(--garn-blau); opacity:.5; margin:12px 18px 0}
 
-  .chips{display:flex; gap:8px; padding:12px 18px 4px; overflow-x:auto; scrollbar-width:none}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; padding:12px 18px 4px; overflow-x:auto; scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
   .chip{
     flex:0 0 auto; padding:7px 13px; border-radius:999px;
@@ -53,6 +53,20 @@
   .chip b{color:var(--tinte); font-weight:600}
   .chip.aktiv{background:var(--tinte); border-color:var(--tinte); color:#fff}
   .chip.aktiv b{color:#fff}
+  .chip b.zahlung-ausstehend{
+    display:inline-block; min-width:22px; padding:1px 6px; margin-left:3px;
+    border-radius:999px; background:var(--beere); color:#fff;
+    text-align:center; animation:zahlung-hinweis 2s ease-in-out infinite;
+  }
+  @keyframes zahlung-hinweis{
+    0%,100%{opacity:1}
+    50%{opacity:.55}
+  }
+  .ablauf-hinweis{display:block; margin-top:8px; font-size:12px; color:var(--tinte-2)}
+  .ablauf-hinweis.warnung{color:var(--beere); font-weight:600}
+  .ablauf-hinweis.abgeschlossen{color:var(--garn-gruen)}
+  .ansicht-hinweis{margin:12px 18px 0; font-size:12.5px; color:var(--tinte-2)}
+  .app-stand{margin:9px 18px 0; font-size:11px; color:var(--tinte-2)}
   .werkzeuge{display:flex; flex-wrap:wrap; gap:8px; padding:8px 18px 0}
   .wz{
     display:inline-flex; align-items:center; gap:7px; padding:6px 12px; border-radius:999px;
@@ -246,9 +260,12 @@
 <div class="werkzeuge">
   <button class="wz" id="wzSortieren">↕ Sortieren: <b id="sortLabel">Deadline</b></button>
   <button class="wz stark" id="wzNeuerOrdner">+ Neuer Ordner</button>
+  <button class="wz" id="wzAktualisieren" type="button" title="App-Dateien neu laden, Aufträge behalten">↻ Aktualisieren</button>
   <button class="wz" id="wzDaten" aria-label="Daten sichern und laden">⤓ Daten</button>
   <button class="wz stark" id="wzInstallieren" type="button" hidden><img src="./icon-192-v6.png" width="20" height="20" alt="" aria-hidden="true">App installieren</button>
 </div>
+<p class="app-stand" id="appStand">Version 7 · Übergabe &amp; Abschluss</p>
+<p class="ansicht-hinweis" id="ansichtHinweis"></p>
 <input type="file" id="fImport" accept="application/json,.json" hidden>
 
 <main class="liste" id="liste"></main>
@@ -288,6 +305,7 @@
     <div class="feld">
       <span class="feld-titel">Status</span>
       <div class="status-schalter" id="formStatusSchalter"></div>
+      <p class="hinweis" id="formBereichHinweis"></p>
     </div>
 
     <div class="feld">
@@ -379,6 +397,7 @@
 
 
 /* ── Stammdaten ────────────────────────── */
+const APP_VERSION = "7";
 const STATUS = {
   offen:      { label:"Offen",     farbe:"#c99a3a", hell:"#dcb15c" },
   fertig:     { label:"Fertig",    farbe:"#4a7c59", hell:"#6c9a79" },
@@ -452,7 +471,7 @@ const SORTIERUNGEN = [
   { id:"deadline", label:"Deadline",        info:"Dringendes zuerst" },
   { id:"neueste",  label:"Neueste zuerst",  info:"Nach Auftragsdatum" },
   { id:"aelteste", label:"Älteste zuerst",  info:"Nach Auftragsdatum" },
-  { id:"status",   label:"Status",          info:"Offen · Fertig · Übergeben" },
+  { id:"status",   label:"Status",          info:"Offen · Fertig · Übergeben · Erledigt" },
   { id:"name",     label:"Name A–Z",        info:"Nach Person" }
 ];
 const ERLEDIGT = "✓ Erledigt";
@@ -504,10 +523,30 @@ function tageBis(iso){
   const heute = new Date(); heute.setHours(0,0,0,0);
   return Math.round((new Date(iso + "T00:00:00") - heute) / 86400000);
 }
-function istAktiv(a){ return a.status === "offen"; }
-/* Erledigt = übergeben UND bezahlt; bei Geschenken reicht übergeben */
-function istErledigt(a){
-  return a.status === "uebergeben" && (a.zahlung === "gezahlt" || a.zahlung === "geschenk");
+/* Ein einziger Bereich pro Auftrag. Fertig ersetzt niemals die tatsächliche Übergabe. */
+function auftragsBereich(a){
+  if(a.status === "uebergeben"){
+    return a.zahlung === "gezahlt" || a.zahlung === "geschenk" ? "erledigt" : "uebergeben";
+  }
+  return a.status === "fertig" ? "fertig" : "offen";
+}
+function istAktiv(a){ return auftragsBereich(a) === "offen"; }
+function istErledigt(a){ return auftragsBereich(a) === "erledigt"; }
+function istUebergebenUnbezahlt(a){ return auftragsBereich(a) === "uebergeben"; }
+function passtZumFilter(a, wert){ return wert === "alle" || auftragsBereich(a) === wert; }
+function bereichHinweis(a){
+  switch(auftragsBereich(a)){
+    case "fertig": return "Fertig, wartet noch auf Übergabe.";
+    case "uebergeben": return "Übergeben, Zahlung noch offen.";
+    case "erledigt": return a.zahlung === "geschenk"
+      ? "Erledigt: Geschenk wurde übergeben."
+      : "Erledigt: übergeben und bezahlt.";
+    default: return "Noch in Arbeit.";
+  }
+}
+function bereichHinweisHtml(a){
+  const klasse = istErledigt(a) ? " abgeschlossen" : (istUebergebenUnbezahlt(a) ? " warnung" : "");
+  return '<span class="ablauf-hinweis' + klasse + '">' + esc(bereichHinweis(a)) + '</span>';
 }
 function fristInfo(a){
   if(!istAktiv(a)) return null;
@@ -552,7 +591,7 @@ function rotAlleNeu(){ for(const f of ROT_FELDER) rotSetzen(f); }
 
 /* ── Sortieren ─────────────────────────── */
 function sortSchluessel(a){
-  const stGruppe = a.status === "offen" ? 0 : (a.status === "fertig" ? 1 : 2);
+  const stGruppe = ["offen","fertig","uebergeben","erledigt"].indexOf(auftragsBereich(a));
   const name = (a.person || "").toLowerCase();
   switch(sortId){
     case "neueste":  return "9|" + (9999999999999 - new Date((a.datum || "1970-01-01") + "T00:00:00").getTime()).toString().padStart(14,"0") + "|" + name;
@@ -571,26 +610,37 @@ function sortiert(liste){
 
 /* ── Liste ─────────────────────────────── */
 function renderChips(){
-  const zaehl = s => auftraege.filter(a => a.status === s).length;
+  const zaehl = s => auftraege.filter(a => passtZumFilter(a, s)).length;
   let html = chipHtml("alle", "Alle", auftraege.length);
   for(const s of STATUS_REIHE) html += chipHtml(s, STATUS[s].label, zaehl(s));
+  html += chipHtml("erledigt", ERLEDIGT, zaehl("erledigt"));
   $("chips").innerHTML = html;
   $("sortLabel").textContent = (SORTIERUNGEN.find(s => s.id === sortId) || SORTIERUNGEN[0]).label;
 }
 function chipHtml(wert, label, n){
-  return '<button class="chip' + (filter === wert ? ' aktiv' : '') + '" data-filter="' + wert + '">' +
-         esc(label) + (n ? ' <b>' + n + '</b>' : '') + '</button>';
+  const warnung = wert === "uebergeben" && n > 0;
+  const hinweis = wert === "uebergeben"
+    ? (n > 0 ? n + (n === 1 ? " übergebener, unbezahlter Auftrag" : " übergebene, unbezahlte Aufträge")
+             : "Keine übergebenen, unbezahlten Aufträge")
+    : label + ": " + n + (n === 1 ? " Auftrag" : " Aufträge");
+  return '<button class="chip' + (filter === wert ? ' aktiv' : '') + '" data-filter="' + wert +
+         '" aria-pressed="' + (filter === wert) + '" aria-label="' + esc(label + ". " + hinweis) +
+         '" title="' + esc(hinweis) + '">' + esc(label) +
+         (n > 0 ? ' <b' + (warnung ? ' class="zahlung-ausstehend"' : '') + '>' + n + '</b>' : '') + '</button>';
 }
 
 function karteHtml(a, imArchiv){
-  const st = STATUS[a.status] || STATUS.offen;
+  const erledigt = istErledigt(a);
+  const st = erledigt
+    ? { label:ERLEDIGT, farbe:STATUS.fertig.farbe, hell:STATUS.fertig.hell }
+    : (STATUS[a.status] || STATUS.offen);
+  const statusAktion = erledigt || a.status === "uebergeben" ? "data-detail" : "data-statuszyklus";
   const frist = fristInfo(a);
   const garn = garnText(a);
   const unter = [a.textil, a.textilFarbe, a.groesse ? "Gr. " + a.groesse : "", a.schnitt, a.platzierung].filter(Boolean).join(" · ");
   const metaTeile = [];
   if(a.datum) metaTeile.push("Auftrag " + fmtDatum(a.datum));
   if(!istAktiv(a) && a.deadline) metaTeile.push("Deadline war " + fmtDatum(a.deadline));
-  if(imArchiv && (a.ordner || "").trim()) metaTeile.push("Ordner: " + a.ordner.trim());
 
   const zahlKlasse = a.zahlung === "gezahlt" ? " gezahlt" : (a.zahlung === "geschenk" ? " geschenk" : "");
   const zahlInhalt = a.zahlung === "geschenk" ? "🎁 Geschenk" : '<span class="mini-box" aria-hidden="true">✓</span>Bezahlt';
@@ -608,14 +658,15 @@ function karteHtml(a, imArchiv){
             (garn ? '<span class="marke">🧵 ' + esc(garn) + '</span>' : '') +
             (a.fotoAnzahl ? '<span class="marke">📷 ' + a.fotoAnzahl + '</span>' : '') +
           '</span>' +
+          bereichHinweisHtml(a) +
           (metaTeile.length ? '<span class="meta">' + esc(metaTeile.join(" · ")) + '</span>' : '') +
         '</button>' +
         '<div class="karte-aktion">' +
-          '<button class="akt-knopf" data-statuszyklus="' + a.id + '" style="color:' + st.farbe + '"><span class="punkt"></span>' + st.label + '</button>' +
+          '<button class="akt-knopf" ' + statusAktion + '="' + a.id + '" style="color:' + st.farbe + '"><span class="punkt"></span>' + st.label + '</button>' +
           '<button class="akt-knopf' + zahlKlasse + '" data-zahlzyklus="' + a.id + '">' + zahlInhalt + '</button>' +
-          '<button class="akt-knopf griff" data-griff="' + a.id + '" aria-label="Ordner wählen oder Karte ziehen">' +
+          (erledigt ? '' : '<button class="akt-knopf griff" data-griff="' + a.id + '" aria-label="Ordner wählen oder Karte ziehen">' +
             '<span class="punkte" aria-hidden="true">⠿</span><span class="txt">' +
-            ((a.ordner || "").trim() ? esc(a.ordner.trim()) : "Ordner") + '</span></button>' +
+            ((a.ordner || "").trim() ? esc(a.ordner.trim()) : "Ordner") + '</span></button>') +
           (a.betrag && a.zahlung !== "geschenk" ? '<span class="betrag-rechts">' + esc(a.betrag) + '</span>' : '') +
         '</div>' +
       '</div>' +
@@ -627,9 +678,13 @@ function karteHtml(a, imArchiv){
 function ordnerHtml(name, posten, art){
   const zu = zuOrdner.indexOf(name) !== -1;
   const archiv = art === "archiv";
-  const info = archiv
-    ? posten.length + " Stück · abgeschlossen"
-    : (posten.length ? posten.length + " Stück" + (posten.filter(istAktiv).length ? " · " + posten.filter(istAktiv).length + " offen" : " · fertig") : "leer");
+  const teile = [
+    ["offen", "offen"], ["fertig", "zur Übergabe"], ["uebergeben", "unbezahlt"]
+  ].map(([bereich, label]) => {
+    const n = posten.filter(a => auftragsBereich(a) === bereich).length;
+    return n ? n + " " + label : "";
+  }).filter(Boolean);
+  const info = archiv ? posten.length + " abgeschlossen" : (teile.join(" · ") || "leer");
   const zielWert = art === "eigen" ? name : (art === "ohne" ? "" : null);
 
   let html = '<section class="ordner' + (archiv ? ' erledigt' : '') + '">' +
@@ -653,36 +708,43 @@ function ordnerHtml(name, posten, art){
 }
 
 function renderListe(){
-  const gefiltert = auftraege.filter(a => filter === "alle" ? true : a.status === filter);
-  const geordnet = sortiert(gefiltert);
+  const gefiltert = sortiert(auftraege.filter(a => passtZumFilter(a, filter)));
   $("leer").hidden = auftraege.length > 0;
-
-  const offenN = auftraege.filter(istAktiv).length;
-  const ohneFrist = auftraege.filter(a => istAktiv(a) && !a.deadline).length;
-  const unbezahlt = auftraege.filter(a => a.zahlung === "offen" && a.status !== "offen").length;
-  let zus;
-  if(auftraege.length === 0) zus = "Dein Überblick über alle Stickprojekte";
-  else if(offenN === 0) zus = "Alles fertig – nichts offen 🎉";
-  else{
-    zus = offenN + (offenN === 1 ? " offener Auftrag" : " offene Aufträge");
-    if(ohneFrist) zus += " · " + ohneFrist + " ohne Deadline";
+  const zaehl = bereich => auftraege.filter(a => auftragsBereich(a) === bereich).length;
+  const teile = [];
+  if(zaehl("offen")) teile.push(zaehl("offen") + " in Arbeit");
+  if(zaehl("fertig")) teile.push(zaehl("fertig") + " warten auf Übergabe");
+  if(zaehl("uebergeben")) teile.push(zaehl("uebergeben") + " übergeben, unbezahlt");
+  $("zusammenfassung").textContent = teile.length ? teile.join(" · ")
+    : (auftraege.length ? "Alle Aufträge übergeben und abgeschlossen ✓" : "Dein Überblick über alle Stickprojekte");
+  const hinweise = {
+    alle: "Erledigt heißt: tatsächlich übergeben und entweder bezahlt oder ein Geschenk.",
+    offen: "Diese Aufträge sind noch in Arbeit, unabhängig von der Bezahlung.",
+    fertig: "Fertig, aber noch nicht übergeben. Auch bezahlte Aufträge und Geschenke bleiben bis zur Übergabe hier.",
+    uebergeben: "Nur übergebene Aufträge mit offener Zahlung. Bezahlt oder Geschenk? Dann stehen sie ausschließlich bei Erledigt.",
+    erledigt: "Tatsächlich übergeben und bezahlt oder verschenkt. Diese Aufträge zählen nicht bei Übergeben."
+  };
+  $("ansichtHinweis").textContent = hinweise[filter] || hinweise.alle;
+  if(filter === "erledigt"){
+    $("liste").innerHTML = gefiltert.length ? ordnerHtml(ERLEDIGT, gefiltert, "archiv")
+      : '<div class="ordner-leer">Noch keine erledigten Aufträge.</div>';
+    return;
   }
-  if(unbezahlt) zus += " · " + unbezahlt + " noch nicht gezahlt";
-  $("zusammenfassung").textContent = zus;
-
-  /* Bei aktivem Status-Filter bleibt alles sichtbar, sonst wandert Erledigtes ins Archiv */
-  const archivTrennen = filter === "alle";
-  const laufend = archivTrennen ? geordnet.filter(a => !istErledigt(a)) : geordnet;
-  const archiv  = archivTrennen ? geordnet.filter(istErledigt) : [];
-
+  if(filter !== "alle" && gefiltert.length === 0){
+    const leerText = filter === "uebergeben" ? "Keine übergebenen Aufträge mit offener Zahlung."
+      : (filter === "fertig" ? "Keine fertigen Aufträge warten auf Übergabe." : "Keine offenen Aufträge.");
+    $("liste").innerHTML = '<div class="ordner-leer">' + leerText + '</div>';
+    return;
+  }
+  const laufend = gefiltert.filter(a => !istErledigt(a));
+  const archiv = gefiltert.filter(istErledigt);
   let html = "";
   for(const o of ordner){
-    html += ordnerHtml(o, laufend.filter(a => (a.ordner || "").trim() === o), "eigen");
+    const posten = laufend.filter(a => (a.ordner || "").trim() === o);
+    if(posten.length || filter === "alle") html += ordnerHtml(o, posten, "eigen");
   }
   const ohne = laufend.filter(a => !(a.ordner || "").trim());
-  if(ohne.length || ordner.length){
-    html += ordnerHtml(OHNE, ohne, "ohne");
-  }
+  if(ohne.length || (ordner.length && filter === "alle")) html += ordnerHtml(OHNE, ohne, "ohne");
   if(archiv.length) html += ordnerHtml(ERLEDIGT, archiv, "archiv");
   $("liste").innerHTML = html;
 }
@@ -922,6 +984,10 @@ function renderFormStatus(){
   $("formStatusSchalter").innerHTML = STATUS_REIHE.map(s =>
     '<button class="status-knopf' + (formStatus === s ? ' aktiv' : '') + '" data-fstatus="' + s + '" style="--sf:' + STATUS[s].farbe + '"><span class="punkt"></span>' + STATUS[s].label + '</button>'
   ).join("");
+  formBereichAnzeigen();
+}
+function formBereichAnzeigen(){
+  $("formBereichHinweis").textContent = bereichHinweis({status:formStatus, zahlung:formZahlung});
 }
 function renderGarn(){
   $("garnChips").innerHTML = Object.keys(GARN_ARTEN).map(k =>
@@ -954,6 +1020,7 @@ function renderZahlung(){
     '<button class="wahl-chip' + (formZahlung === z ? ' aktiv' : '') + '" data-zahlung="' + z + '" style="--wf:' + ZAHLUNG[z].farbe + '">' + ZAHLUNG[z].label + '</button>'
   ).join("");
   $("betragWrap").hidden = formZahlung === "geschenk";
+  formBereichAnzeigen();
 }
 function renderFristHinweis(){
   const h = $("fristHinweis");
@@ -1135,6 +1202,7 @@ function detailZeilen(a){
   const zahlLabel = a.zahlung === "geschenk" ? "Geschenk"
                   : (a.zahlung === "gezahlt" ? "Gezahlt" : "Noch nicht gezahlt") + (a.betrag ? " · " + a.betrag : "");
   return [
+    ["Einordnung", esc(bereichHinweis(a)), false],
     ["Ordner", esc(a.ordner), false],
     ["Motiv", esc(a.motiv), false],
     ["Garnfarbe", esc(garnText(a)), false],
@@ -1172,6 +1240,7 @@ async function detailZeigen(id){
           '<button class="status-knopf' + (a.status === s ? ' aktiv' : '') + '" data-status="' + s + '" style="--sf:' + STATUS[s].farbe + '"><span class="punkt"></span>' + STATUS[s].label + '</button>'
         ).join("") +
       '</div>' +
+      '<div id="detailBereich">' + bereichHinweisHtml(a) + '</div>' +
       '<div id="detailFrist" style="margin-top:12px">' + fristBlockHtml(a) + '</div>' +
     '</div>' +
     '<div class="detail-block">' +
@@ -1203,46 +1272,65 @@ async function detailZeigen(id){
 }
 function detailSchliessen(){ $("sheetDetail").classList.remove("offen"); detailId = null; }
 
+let auftragSpeichert = false;
+async function auftragAendern(id, aenderungen){
+  if(auftragSpeichert){ toast("Bitte kurz warten, der Auftrag wird gespeichert."); return null; }
+  const vorher = auftraege.find(a => a.id === id);
+  if(!vorher) return null;
+  const neu = { ...vorher, ...aenderungen };
+  if(!STATUS_REIHE.includes(neu.status) || !ZAHLUNG_REIHE.includes(neu.zahlung)){
+    toast("Ungültiger Status oder Zahlungsstand. Bitte den Auftrag bearbeiten.");
+    return null;
+  }
+  const naechste = auftraege.map(a => a.id === id ? neu : a);
+  auftragSpeichert = true;
+  try{
+    await spSchreib(INDEX_KEY, naechste);
+  }catch(fehler){
+    console.error("Auftrag konnte nicht gespeichert werden:", fehler);
+    toast("Nicht gespeichert. Bitte erneut versuchen oder zuerst eine Sicherung anlegen.");
+    return null;
+  }finally{
+    auftragSpeichert = false;
+  }
+  auftraege = naechste;
+  renderAlles();
+  if(detailId === id){
+    const statusBox = $("detailStatusBox"), zahlBox = $("detailZahlBox");
+    if(statusBox) statusBox.querySelectorAll("[data-status]").forEach(b => b.classList.toggle("aktiv", b.dataset.status === neu.status));
+    if(zahlBox) zahlBox.querySelectorAll("[data-dzahl]").forEach(b => b.classList.toggle("aktiv", b.dataset.dzahl === neu.zahlung));
+    if($("detailFrist")) $("detailFrist").innerHTML = fristBlockHtml(neu);
+    if($("detailBereich")) $("detailBereich").innerHTML = bereichHinweisHtml(neu);
+    detailInfosAktualisieren(neu);
+  }
+  frischMarkieren(id);
+  return neu;
+}
 async function statusSetzen(neu){
   const a = auftraege.find(x => x.id === detailId);
   if(!a || a.status === neu) return;
-  a.status = neu;
-  const box = $("detailStatusBox");
-  if(box) box.querySelectorAll("[data-status]").forEach(b => b.classList.toggle("aktiv", b.dataset.status === neu));
-  const f = $("detailFrist");
-  if(f) f.innerHTML = fristBlockHtml(a);
-  await spSchreib(INDEX_KEY, auftraege);
-  renderAlles();
-  toast("Status: " + STATUS[neu].label);
+  const aktualisiert = await auftragAendern(a.id, {status:neu});
+  if(aktualisiert) toast(bereichHinweis(aktualisiert));
 }
 async function zahlungSetzen(neu){
   const a = auftraege.find(x => x.id === detailId);
   if(!a || a.zahlung === neu) return;
-  a.zahlung = neu;
-  if(neu === "geschenk") a.betrag = "";
-  const box = $("detailZahlBox");
-  if(box) box.querySelectorAll("[data-dzahl]").forEach(b => b.classList.toggle("aktiv", b.dataset.dzahl === neu));
-  detailInfosAktualisieren(a);
-  await spSchreib(INDEX_KEY, auftraege);
-  renderAlles();
-  toast(neu === "geschenk" ? "Als Geschenk markiert" : (neu === "gezahlt" ? "Als gezahlt markiert" : "Als offen markiert"));
+  const aktualisiert = await auftragAendern(a.id, neu === "geschenk" ? {zahlung:neu, betrag:""} : {zahlung:neu});
+  if(aktualisiert) toast(bereichHinweis(aktualisiert));
 }
 async function statusZyklus(id){
   const a = auftraege.find(x => x.id === id);
   if(!a) return;
-  a.status = STATUS_REIHE[(STATUS_REIHE.indexOf(a.status) + 1) % STATUS_REIHE.length];
-  await spSchreib(INDEX_KEY, auftraege);
-  renderAlles(); frischMarkieren(id);
-  toast("Status: " + STATUS[a.status].label);
+  const neu = STATUS_REIHE[(STATUS_REIHE.indexOf(a.status) + 1) % STATUS_REIHE.length];
+  const aktualisiert = await auftragAendern(id, {status:neu});
+  if(aktualisiert) toast(bereichHinweis(aktualisiert));
 }
 async function zahlungZyklus(id){
   const a = auftraege.find(x => x.id === id);
   if(!a) return;
-  a.zahlung = ZAHLUNG_REIHE[(ZAHLUNG_REIHE.indexOf(a.zahlung || "offen") + 1) % ZAHLUNG_REIHE.length];
-  if(a.zahlung === "geschenk") a.betrag = "";
-  await spSchreib(INDEX_KEY, auftraege);
-  renderAlles(); frischMarkieren(id);
-  toast(a.zahlung === "geschenk" ? "🎁 Geschenk" : (a.zahlung === "gezahlt" ? "Als gezahlt markiert" : "Als nicht gezahlt markiert"));
+  const neu = ZAHLUNG_REIHE[(ZAHLUNG_REIHE.indexOf(a.zahlung || "offen") + 1) % ZAHLUNG_REIHE.length];
+  const aktualisiert = await auftragAendern(id, neu === "geschenk" ? {zahlung:neu, betrag:""} : {zahlung:neu});
+  if(aktualisiert) toast(bereichHinweis(aktualisiert));
 }
 async function loeschen(){
   const btn = $("btnLoeschen");
@@ -1274,7 +1362,11 @@ document.addEventListener("click", e => {
   if(!t){ if(e.target.id === "viewer") $("viewer").classList.remove("offen"); return; }
   if(t.hasAttribute("data-griff")) return;   /* wird beim Loslassen behandelt */
 
-  if(t.dataset.filter){ filter = t.dataset.filter; renderAlles(); return; }
+  if(t.dataset.filter){
+    filter = t.dataset.filter;
+    if(filter === "erledigt") zuOrdner = zuOrdner.filter(n => n !== ERLEDIGT);
+    renderAlles(); return;
+  }
   if(t.id === "wzSortieren"){ blattOeffnen("sort"); return; }
   if(t.id === "wzNeuerOrdner"){ blattOeffnen("neu"); return; }
   if(t.id === "wzDaten"){ blattOeffnen("daten"); return; }
@@ -1403,7 +1495,7 @@ function pwaInstallKnopfAktualisieren(){
 }
 function pwaPruefungHTML(){
   if(pwaPrueft) return "Installationsdateien werden geprüft …";
-  if(!pwaPruefergebnis.length) return "Version 6 · Ohne Unterordner";
+  if(!pwaPruefergebnis.length) return "Version " + APP_VERSION + " · Übergabe & Abschluss";
   return pwaPruefergebnis.map(e => '<p>' + esc(e) + '</p>').join("");
 }
 function pwaPruefungAnzeigen(){
@@ -1415,7 +1507,7 @@ function pwaPruefungAnzeigen(){
 async function pwaDateiLesen(pfad, typ, groesse){
   const url = new URL(pfad, document.baseURI);
   if(url.origin !== location.origin) throw new Error("Datei liegt nicht auf dieser Website: " + pfad);
-  url.searchParams.set("pwa-check", "v6");
+  url.searchParams.set("pwa-check", "v" + APP_VERSION);
   const steuerung = new AbortController();
   const timer = setTimeout(() => steuerung.abort(), 10000);
   const name = decodeURIComponent(url.pathname.split("/").pop());
@@ -1484,7 +1576,7 @@ async function pwaInstallationPruefen(){
       pwaPruefergebnis = fehler.concat("Die genannten PNG-Dateien unverändert direkt neben index.html hochladen. Danach erneut prüfen.");
       return;
     }
-    pwaPruefergebnis.push("✓ Manifest und alle vier Android-Symbole sind erreichbar. Version 6 ist veröffentlicht.");
+    pwaPruefergebnis.push("✓ Manifest und alle vier Android-Symbole sind erreichbar.");
     try{
       await pwaDateiLesen("./sw.js", "script");
       if(pwaSWFehler) pwaPruefergebnis.push("Offline-Funktion: " + pwaSWFehler);
@@ -1506,9 +1598,48 @@ async function pwaInstallationPruefen(){
   }
 }
 
+async function appAktualisieren(){
+  const button = $("wzAktualisieren");
+  if(button.disabled) return;
+  if($("sheetForm").classList.contains("offen")){
+    toast("Bitte den Auftrag zuerst speichern oder das Formular schließen."); return;
+  }
+  if(!/^https?:$/.test(location.protocol)){
+    toast("Bitte die veröffentlichte App-Website öffnen."); return;
+  }
+  if(!navigator.onLine){ toast("Zum Aktualisieren bitte eine Internetverbindung herstellen."); return; }
+  button.disabled = true;
+  button.textContent = "Prüfe Update …";
+  const steuerung = new AbortController();
+  const timer = setTimeout(() => steuerung.abort(), 10000);
+  try{
+    const pruefUrl = new URL("./index.html", document.baseURI);
+    pruefUrl.searchParams.set("pwa-check", String(Date.now()));
+    const antwort = await fetch(pruefUrl.href, {cache:"no-store", signal:steuerung.signal});
+    if(!antwort.ok) throw new Error("HTTP " + antwort.status);
+    const dokument = new DOMParser().parseFromString(await antwort.text(), "text/html");
+    if(!dokument.querySelector('meta[name="app-version"]')) throw new Error("Keine gültige App-Datei");
+    if("serviceWorker" in navigator){
+      const registrierung = await navigator.serviceWorker.getRegistration(new URL("./", document.baseURI).href);
+      if(registrierung) registrierung.update().catch(fehler => console.warn("Offline-Update:", fehler));
+    }
+    const ziel = new URL("./index.html", document.baseURI);
+    ziel.searchParams.set("app-update", String(Date.now()));
+    location.replace(ziel.href);
+  }catch(fehler){
+    console.warn("App-Update nicht möglich:", fehler);
+    toast("Update nicht geladen. Deine Aufträge bleiben erhalten. Bitte mit Internet erneut versuchen.");
+  }finally{
+    clearTimeout(timer);
+    button.disabled = false;
+    button.textContent = "↻ Aktualisieren";
+  }
+}
+$("wzAktualisieren").addEventListener("click", appAktualisieren);
+
 if("serviceWorker" in navigator && window.isSecureContext && /^https?:$/.test(location.protocol)){
   const pwaOfflineStarten = () => {
-    navigator.serviceWorker.register("./sw.js?v=6", {
+    navigator.serviceWorker.register("./sw.js", {
       scope: "./", updateViaCache: "none"
     }).catch(fehler => {
       pwaSWFehler = fehler.message || "Service Worker konnte nicht registriert werden.";
