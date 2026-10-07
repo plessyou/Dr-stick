@@ -1,3 +1,4 @@
+###
 name: Supabase wach halten
 
 on:
@@ -17,3 +18,4 @@ jobs:
             "$url/rest/v1/lebenszeichen?select=id" -H "apikey: $key")
           echo "Antwort: $antwort"
           test "$antwort" = "200"
+###
