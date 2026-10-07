@@ -1,21 +1,21 @@
 ###
-name: Supabase wach halten
+#name: Supabase wach halten
 
-on:
-  schedule:
-    - cron: "0 6 */3 * *"
-  workflow_dispatch:
+#on:
+ # schedule:
+  #  - cron: "0 6 */3 * *"
+  #workflow_dispatch:
 
-jobs:
-  anklopfen:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Kurz anklopfen
-        run: |
-          url="https://aavoezleqtmeapbyizli.supabase.co"
-          key="sb_publishable_Nxl6tpJShFsqZ3XKx4xGhQ_UjUp71e2"
-          antwort=$(curl -sS -o /dev/null -w "%{http_code}" \
-            "$url/rest/v1/lebenszeichen?select=id" -H "apikey: $key")
-          echo "Antwort: $antwort"
-          test "$antwort" = "200"
+#jobs:
+ # anklopfen:
+  #  runs-on: ubuntu-latest
+   # steps:
+    #  - name: Kurz anklopfen
+     #   run: |
+      #    url="https://aavoezleqtmeapbyizli.supabase.co"
+       #   key="sb_publishable_Nxl6tpJShFsqZ3XKx4xGhQ_UjUp71e2"
+        #  antwort=$(curl -sS -o /dev/null -w "%{http_code}" \
+         #   "$url/rest/v1/lebenszeichen?select=id" -H "apikey: $key")
+          #echo "Antwort: $antwort"
+          #test "$antwort" = "200"
 ###
